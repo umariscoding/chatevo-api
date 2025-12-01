@@ -3,14 +3,13 @@ from langchain_cohere import CohereEmbeddings
 from langchain_pinecone import PineconeVectorStore
 from langchain_groq import ChatGroq
 from pinecone import Pinecone, ServerlessSpec
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain.chains import create_history_aware_retriever, create_retrieval_chain
-from langchain.chains.combine_documents import create_stuff_documents_chain
+# Removed unused imports - using manual chains instead
 from langchain_core.chat_history import BaseChatMessageHistory
 from langchain_core.runnables.history import RunnableWithMessageHistory
 from typing import AsyncGenerator, List, Dict, Optional
+from langsmith import traceable
 from app.core.config import settings, EMBEDDING_MODEL
-from app.services.prompts import contextualize_q_system_prompt, qa_system_prompt
+from app.services.chains import create_conversational_rag_chain
 from app.services.document_service import split_text_for_txt
 from app.db.database import update_document_embeddings_status, load_session_history
 
@@ -287,14 +286,15 @@ def clear_company_knowledge_base(company_id: str):
     except Exception as e:
         return False
 
+@traceable(name="get_company_rag_chain")
 def get_company_rag_chain(company_id: str, llm_model: str = "Groq") -> RunnableWithMessageHistory:
     """
-    Get or create a company-specific RAG chain.
-    
+    Get or create a company-specific RAG chain with LangSmith tracing.
+
     Args:
         company_id (str): Company ID
         llm_model (str): LLM model to use
-        
+
     Returns:
         RunnableWithMessageHistory: Company-specific RAG chain
     """
@@ -387,7 +387,7 @@ def get_company_rag_chain(company_id: str, llm_model: str = "Groq") -> RunnableW
         namespace=namespace
     )
 
-    # Create LLM (using Groq with deepseek-r1-distill-llama-70b)
+    # Create LLM (using Groq with llama-3.1-8b-instant)
     if llm_model == "Groq":
         check_groq_key()
         groq_api_key = get_groq_api_key()
@@ -403,33 +403,14 @@ def get_company_rag_chain(company_id: str, llm_model: str = "Groq") -> RunnableW
         llm = ChatOpenAI(openai_api_key=openai_api_key)
     else:
         raise ValueError(f"Model {llm_model} not available. Only Groq and OpenAI are supported.")
-    
-    # Create prompts
-    contextualize_q_prompt = ChatPromptTemplate.from_messages([
-        ("system", contextualize_q_system_prompt),
-        MessagesPlaceholder("chat_history"),
-        ("human", "{input}"),
-    ])
-    
-    qa_prompt = ChatPromptTemplate.from_messages([
-        ("system", qa_system_prompt),
-        MessagesPlaceholder("chat_history"),
-        ("human", "{input}"),
-    ])
-    
-    # Create optimized RAG chain using latest patterns
+
+    # Create conversational RAG chain using manual chains from chains.py
+    # This uses separate chains for contextualization and QA
+    # Only uses last 5 messages in the final answer prompt
     try:
-        # Create history-aware retriever
-        history_aware_retriever = create_history_aware_retriever(
-            llm, retriever, contextualize_q_prompt
-        )
-        
-        # Create question-answer chain
-        question_answer_chain = create_stuff_documents_chain(llm, qa_prompt)
-        
-        # Create retrieval chain
-        rag_chain = create_retrieval_chain(history_aware_retriever, question_answer_chain)
-        
+        # Create the conversational RAG chain
+        rag_chain = create_conversational_rag_chain(llm, retriever)
+
         # Create session history function with error handling
         def get_session_history(chat_id: str) -> BaseChatMessageHistory:
             try:
@@ -438,16 +419,15 @@ def get_company_rag_chain(company_id: str, llm_model: str = "Groq") -> RunnableW
                 # Return empty history as fallback
                 from langchain_core.chat_history import InMemoryChatMessageHistory
                 return InMemoryChatMessageHistory()
-        
-        # Create conversational RAG chain with proper configuration
+
+        # Wrap with message history to make it conversational
         conversational_rag_chain = RunnableWithMessageHistory(
             rag_chain,
             get_session_history,
             input_messages_key="input",
             history_messages_key="chat_history",
-            output_messages_key="answer",
         )
-        
+
     except Exception as chain_error:
         raise chain_error
     
@@ -512,20 +492,26 @@ async def stream_company_response(company_id: str, query: str, chat_id: str, llm
                 {"input": query},
                 config={"configurable": {"session_id": chat_id}},
             )
-            
+
             response_started = False
-            
+
             for chunk in resp:
-                if 'answer' in chunk:
+                # The manual chains return the response directly as a string
+                if isinstance(chunk, str):
+                    response_started = True
+                    if chunk:  # Only yield non-empty chunks
+                        yield chunk
+                # Fallback for dict format (backward compatibility)
+                elif isinstance(chunk, dict) and 'answer' in chunk:
                     response_started = True
                     chunk_content = chunk['answer']
-                    if chunk_content:  # Only yield non-empty chunks
+                    if chunk_content:
                         yield chunk_content
-            
+
             # If no response was generated
             if not response_started:
                 yield "I apologize, but I couldn't generate a response. Please try again or contact support if the issue persists."
-                
+
         except Exception as stream_error:
             yield f"Error: Failed to generate response. Details: {str(stream_error)}"
             return
