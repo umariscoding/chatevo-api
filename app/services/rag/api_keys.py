@@ -23,6 +23,12 @@ def check_groq_key():
         raise ValueError("Groq API key is not set in the environment variables.")
 
 
+def check_anthropic_key():
+    """Validate Anthropic API key is set."""
+    if not settings.anthropic_api_key:
+        raise ValueError("Anthropic API key is not set in the environment variables.")
+
+
 def check_pinecone_key():
     """Validate Pinecone API key is set."""
     if not settings.pinecone_api_key:
@@ -37,6 +43,11 @@ def get_openai_api_key() -> str:
 def get_cohere_api_key() -> str:
     """Get the current Cohere API key from settings."""
     return settings.cohere_api_key
+
+
+def get_anthropic_api_key() -> str:
+    """Get the current Anthropic API key from settings."""
+    return settings.anthropic_api_key
 
 
 def get_groq_api_key() -> str:

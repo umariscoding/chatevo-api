@@ -15,6 +15,10 @@ from .api_keys import (
     get_groq_api_key,
     check_openai_key,
     get_openai_api_key,
+    check_anthropic_key,
+    get_anthropic_api_key,
+    check_cohere_key,
+    get_cohere_api_key,
     check_pinecone_key,
     get_pinecone_api_key,
 )
@@ -72,6 +76,10 @@ __all__ = [
     "get_groq_api_key",
     "check_openai_key",
     "get_openai_api_key",
+    "check_anthropic_key",
+    "get_anthropic_api_key",
+    "check_cohere_key",
+    "get_cohere_api_key",
     "check_pinecone_key",
     "get_pinecone_api_key",
     # Pinecone
