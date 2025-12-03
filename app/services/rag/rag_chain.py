@@ -24,17 +24,18 @@ _company_rag_chains: Dict[str, Dict[str, RunnableWithMessageHistory]] = {}
 
 @traceable(name="get_company_rag_chain")
 def get_company_rag_chain(
-    company_id: str, llm_model: str = "Groq"
+    company_id: str, llm_model: str = "Llama-instant"
 ) -> RunnableWithMessageHistory:
     """
     Get or create a company-specific RAG chain with LangSmith tracing.
+    Uses shared index with namespace isolation per company.
 
     Args:
-        company_id: Company ID
-        llm_model: LLM model to use
+        company_id: Company ID (used as namespace)
+        llm_model: LLM model to use (default: Llama-instant)
 
     Returns:
-        Company-specific RAG chain
+        Company-specific RAG chain with namespace isolation
     """
     global _company_rag_chains
 
@@ -48,12 +49,17 @@ def get_company_rag_chain(
 
     # Create fresh components
     ensure_company_index_exists(company_id)
-    index_name = get_company_index_name(company_id)
+    index_name = get_company_index_name(company_id)  # Returns shared index name
     embedding_function = create_embedding_function()
     pinecone_index = get_pinecone_client().Index(index_name)
 
-    # Create retriever (no namespace needed - company has own index)
-    retriever = create_company_retriever(pinecone_index, embedding_function)
+    # Create retriever with company namespace for isolation
+    # Each company has their own namespace in the shared index
+    retriever = create_company_retriever(
+        pinecone_index,
+        embedding_function,
+        namespace=company_id  # Use company_id as namespace
+    )
 
     # Create LLM
     llm = create_llm(llm_model)
