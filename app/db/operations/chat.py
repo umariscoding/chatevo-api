@@ -3,7 +3,7 @@ Chat-related database operations.
 """
 
 from typing import Dict, Any, Optional, List
-from langchain_core.chat_history import BaseChatMessageHistory
+from langchain_core.chat_history import InMemoryChatMessageHistory
 
 from .client import db, generate_id
 from .message import fetch_messages
@@ -119,9 +119,9 @@ async def delete_chat(company_id: str, chat_id: str) -> bool:
     return len(res.data) > 0
 
 
-def load_session_history(company_id: str, chat_id: str) -> BaseChatMessageHistory:
+def load_session_history(company_id: str, chat_id: str) -> InMemoryChatMessageHistory:
     """Load chat message history for a session."""
-    history = BaseChatMessageHistory()
+    history = InMemoryChatMessageHistory()
     messages = fetch_messages(company_id, chat_id)
     for msg in messages:
         if msg["role"] == "human":

@@ -120,7 +120,16 @@ async def get_published_company_info(slug: str) -> Optional[Dict[str, Any]]:
     )
     if not res.data:
         return None
-    return res.data[0]
+
+    company = res.data[0]
+    # Use slug as default if chatbot_title is not set
+    if not company.get("chatbot_title"):
+        company["chatbot_title"] = company["slug"]
+    # Use empty string as default if chatbot_description is not set
+    if not company.get("chatbot_description"):
+        company["chatbot_description"] = ""
+
+    return company
 
 
 async def authenticate_company(email: str, password: str) -> Optional[Dict[str, Any]]:

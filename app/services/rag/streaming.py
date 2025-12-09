@@ -4,11 +4,17 @@ Response streaming for RAG chains.
 
 from typing import AsyncGenerator
 from .rag_chain import get_company_rag_chain
-from .api_keys import get_groq_api_key, get_openai_api_key, get_pinecone_api_key
+from .api_keys import (
+    get_groq_api_key,
+    get_openai_api_key,
+    get_cohere_api_key,
+    get_anthropic_api_key,
+    get_pinecone_api_key
+)
 
 
 async def stream_company_response(
-    company_id: str, query: str, chat_id: str, llm_model: str = "Groq"
+    company_id: str, query: str, chat_id: str, llm_model: str = "Llama-instant"
 ) -> AsyncGenerator[str, None]:
     """
     Stream response from company-specific RAG chain.
@@ -17,14 +23,15 @@ async def stream_company_response(
         company_id: Company ID
         query: User query
         chat_id: Chat ID
-        llm_model: LLM model to use (default: Groq)
+        llm_model: LLM model to use (default: Llama-instant)
 
     Yields:
         Response chunks
     """
     try:
         # Check API keys based on the model
-        if llm_model == "Groq":
+        # Llama models (Llama-instant, Llama-large) and legacy "Groq" use Groq API
+        if llm_model in ["Groq", "Llama-instant", "Llama-large"]:
             groq_key = get_groq_api_key()
             if not groq_key or groq_key == "your-groq-api-key-here":
                 yield "Error: Groq API key not configured. Please create a .env file in the project root and set GROQ_API_KEY=your-actual-groq-key. You can get an API key from https://console.groq.com/"
@@ -33,6 +40,16 @@ async def stream_company_response(
             openai_key = get_openai_api_key()
             if not openai_key or openai_key == "your-openai-api-key-here":
                 yield "Error: OpenAI API key not configured. Please create a .env file in the project root and set OPENAI_API_KEY=your-actual-openai-key. You can get an API key from https://platform.openai.com/api-keys"
+                return
+        elif llm_model == "Claude":
+            anthropic_key = get_anthropic_api_key()
+            if not anthropic_key or anthropic_key == "your-anthropic-api-key-here":
+                yield "Error: Anthropic API key not configured. Please create a .env file in the project root and set ANTHROPIC_API_KEY=your-actual-anthropic-key. You can get an API key from https://console.anthropic.com/"
+                return
+        elif llm_model == "Cohere":
+            cohere_key = get_cohere_api_key()
+            if not cohere_key or cohere_key == "your-cohere-api-key-here":
+                yield "Error: Cohere API key not configured. Please create a .env file in the project root and set COHERE_API_KEY=your-actual-cohere-key. You can get an API key from https://cohere.com/"
                 return
 
         # Check if Pinecone API key is available

@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     openai_api_key: Optional[str] = os.getenv("OPENAI_API_KEY")
     cohere_api_key: Optional[str] = os.getenv("COHERE_API_KEY")
     groq_api_key: Optional[str] = os.getenv("GROQ_API_KEY")
+    anthropic_api_key: Optional[str] = os.getenv("ANTHROPIC_API_KEY")
     pinecone_api_key: Optional[str] = os.getenv("PINECONE_API_KEY")
     supabase_url: Optional[str] = os.getenv("SUPABASE_URL")
     supabase_key: Optional[str] = os.getenv("SUPABASE_KEY")
