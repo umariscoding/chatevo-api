@@ -213,20 +213,20 @@ async def get_chat_history(
     """
     try:
         # Fetch messages for this company and chat
-        messages = await fetch_messages(user.company_id, chat_id)
-        
+        messages = fetch_messages(user.company_id, chat_id)
+
         # Additional access control: verify the chat belongs to this user/session
         chats = await fetch_company_chats(
             company_id=user.company_id,
             user_id=user.user_id if user.user_type == "user" else None,
             session_id=user.user_id if user.user_type == "guest" else None
         )
-        
+
         # Check if this chat belongs to the user
         chat_exists = any(chat["chat_id"] == chat_id for chat in chats)
         if not chat_exists:
             raise HTTPException(status_code=404, detail="Chat not found or access denied")
-        
+
         return ChatHistory(messages=messages)
         
     except HTTPException:
