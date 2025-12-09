@@ -4,6 +4,7 @@ User-related database operations.
 
 from typing import Dict, Any, Optional, List
 from .client import db, generate_id
+from app.utils.password import get_password_hash
 
 
 async def create_user(
@@ -49,7 +50,7 @@ async def create_user(
     }
 
     if password:
-        user_data["password"] = password
+        user_data["password_hash"] = get_password_hash(password)
 
     res = db.table("company_users").insert(user_data).execute()
     return res.data[0]
@@ -130,7 +131,7 @@ async def authenticate_user(
     user = res.data[0]
 
     # Verify password
-    if not verify_password(password, user.get("password", "")):
+    if not verify_password(password, user.get("password_hash", "")):
         return None
 
     return user
