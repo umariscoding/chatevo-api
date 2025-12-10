@@ -18,6 +18,7 @@ class DirectPineconeRetriever(BaseRetriever):
 
     pinecone_index: Any = Field(description="Pinecone index object")
     embedding_function: Any = Field(description="Embedding function")
+    namespace: str = Field(description="Namespace for company isolation (company_id)")
     top_k: int = Field(default=8, description="Number of documents to retrieve")
 
     class Config:
@@ -31,12 +32,12 @@ class DirectPineconeRetriever(BaseRetriever):
             # Generate embedding for the query
             query_embedding = self.embedding_function.embed_query(query)
 
-            # Query Pinecone directly using the namespace set in the index
-            # Note: namespace is already set when the index object was created
+            # Query Pinecone with company namespace for isolation
             results = self.pinecone_index.query(
                 vector=query_embedding,
                 top_k=self.top_k,
                 include_metadata=True,
+                namespace=self.namespace,  # Use company_id as namespace
             )
 
             # Convert results to LangChain documents
@@ -63,15 +64,19 @@ class DirectPineconeRetriever(BaseRetriever):
 
 
 def create_company_retriever(
-    pinecone_index: Any, embedding_function: Any, top_k: int = 8
+    pinecone_index: Any,
+    embedding_function: Any,
+    namespace: str,
+    top_k: int = 8
 ) -> DirectPineconeRetriever:
     """
     Create a custom retriever for a company.
     Uses shared index with namespace isolation.
 
     Args:
-        pinecone_index: Pinecone index instance (with namespace set)
+        pinecone_index: Pinecone index instance
         embedding_function: Embedding function
+        namespace: Namespace for company isolation (company_id)
         top_k: Number of documents to retrieve
 
     Returns:
@@ -80,5 +85,6 @@ def create_company_retriever(
     return DirectPineconeRetriever(
         pinecone_index=pinecone_index,
         embedding_function=embedding_function,
+        namespace=namespace,
         top_k=top_k,
     )
