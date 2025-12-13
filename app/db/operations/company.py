@@ -233,3 +233,66 @@ async def update_chatbot_info(
         .execute()
     )
     return len(res.data) > 0
+
+
+async def batch_update_settings(
+    company_id: str,
+    slug: Optional[str] = None,
+    chatbot_title: Optional[str] = None,
+    chatbot_description: Optional[str] = None,
+    is_published: Optional[bool] = None,
+) -> Optional[Dict[str, Any]]:
+    """
+    Batch update company settings.
+
+    Args:
+        company_id: Company ID
+        slug: Optional new slug
+        chatbot_title: Optional chatbot title
+        chatbot_description: Optional chatbot description
+        is_published: Optional publish status
+
+    Returns:
+        Updated company record
+
+    Raises:
+        ValueError: If slug is already taken or validation fails
+    """
+    import datetime
+
+    update_data = {}
+
+    # Validate and add slug if provided
+    if slug is not None:
+        # Check if slug is already taken by another company
+        existing = (
+            db.table("companies")
+            .select("company_id")
+            .eq("slug", slug)
+            .neq("company_id", company_id)
+            .execute()
+        )
+        if existing.data:
+            raise ValueError("This slug is already taken by another company")
+        update_data["slug"] = slug
+
+    # Add chatbot info if provided
+    if chatbot_title is not None:
+        update_data["chatbot_title"] = chatbot_title
+    if chatbot_description is not None:
+        update_data["chatbot_description"] = chatbot_description
+
+    # Add publish status if provided
+    if is_published is not None:
+        update_data["is_published"] = is_published
+        if is_published:
+            update_data["published_at"] = datetime.datetime.utcnow().isoformat()
+
+    # Only update if there's something to update
+    if not update_data:
+        return await get_company_by_id(company_id)
+
+    res = db.table("companies").update(update_data).eq("company_id", company_id).execute()
+    if not res.data:
+        return None
+    return res.data[0]

@@ -6,7 +6,7 @@ from fastapi import APIRouter, HTTPException, status, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 from typing import Dict, Any
-from app.models.models import CompanyRegisterModel, CompanyLoginModel, CompanySlugModel, PublishChatbotModel, ChatbotInfoModel
+from app.models.models import CompanyRegisterModel, CompanyLoginModel, CompanySlugModel, PublishChatbotModel, ChatbotInfoModel, BatchUpdateSettingsModel
 from app.auth import (
     create_company_tokens, verify_password, get_password_hash,
     refresh_access_token, get_current_user_info
@@ -14,7 +14,8 @@ from app.auth import (
 from app.auth.dependencies import get_current_company, UserContext
 from app.db.operations.company import (
     create_company, authenticate_company, get_company_by_id,
-    update_company_slug, publish_chatbot, update_chatbot_info, get_company_by_slug
+    update_company_slug, publish_chatbot, update_chatbot_info, get_company_by_slug,
+    batch_update_settings
 )
 from app.db.operations.user import get_users_by_company_id
 from app.core.config import get_chatbot_url
@@ -536,6 +537,97 @@ async def get_company_users(current_company: UserContext = Depends(get_current_c
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get company users: {str(e)}"
+        )
+
+@router.put("/company/settings")
+async def batch_update_settings_endpoint(
+    settings_data: BatchUpdateSettingsModel,
+    current_company: UserContext = Depends(get_current_company)
+) -> Dict[str, Any]:
+    """
+    Batch update company settings (slug, chatbot info, publish status).
+
+    Args:
+        settings_data: Settings to update
+        current_company: Current company context
+
+    Returns:
+        dict: Success message and updated company data
+
+    Raises:
+        HTTPException: If validation fails or update fails
+    """
+    try:
+        # Validate at least one field is provided
+        if (settings_data.slug is None and
+            settings_data.chatbot_title is None and
+            settings_data.chatbot_description is None and
+            settings_data.is_published is None):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="At least one field must be provided"
+            )
+
+        # Validate slug format if provided
+        if settings_data.slug is not None:
+            import re
+            if not re.match(r'^[a-z0-9-]+$', settings_data.slug):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Slug must contain only lowercase letters, numbers, and hyphens"
+                )
+            if len(settings_data.slug) < 3 or len(settings_data.slug) > 50:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Slug must be between 3 and 50 characters long"
+                )
+
+        # Check if trying to publish without slug
+        if settings_data.is_published:
+            company = await get_company_by_id(current_company.company_id)
+            if not company:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Company not found"
+                )
+            # If no slug provided in update and company doesn't have one
+            if settings_data.slug is None and not company.get("slug"):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Company must have a slug before publishing"
+                )
+
+        # Perform batch update
+        updated_company = await batch_update_settings(
+            company_id=current_company.company_id,
+            slug=settings_data.slug,
+            chatbot_title=settings_data.chatbot_title,
+            chatbot_description=settings_data.chatbot_description,
+            is_published=settings_data.is_published
+        )
+
+        if not updated_company:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to update settings"
+            )
+
+        return {
+            "message": "Settings updated successfully",
+            "company": updated_company
+        }
+
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to update settings: {str(e)}"
         )
 
 # Health check endpoint

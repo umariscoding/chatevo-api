@@ -179,6 +179,12 @@ class ChatbotInfoModel(BaseModel):
     chatbot_title: Optional[str] = None
     chatbot_description: Optional[str] = None
 
+class BatchUpdateSettingsModel(BaseModel):
+    slug: Optional[str] = None
+    chatbot_title: Optional[str] = None
+    chatbot_description: Optional[str] = None
+    is_published: Optional[bool] = None
+
 
 class PublicChatMessage(BaseModel):
     message: str
