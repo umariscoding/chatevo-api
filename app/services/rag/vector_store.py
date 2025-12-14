@@ -165,6 +165,44 @@ def delete_company_knowledge_base(company_id: str) -> bool:
         return False
 
 
+def delete_document_vectors(company_id: str, document_id: str) -> bool:
+    """
+    Delete all vectors associated with a specific document.
+    Uses metadata filtering to delete only vectors with the given document_id.
+
+    Args:
+        company_id: Company ID (namespace)
+        document_id: Document ID to delete vectors for
+
+    Returns:
+        True if successful
+    """
+    import logging
+
+    logger = logging.getLogger(__name__)
+
+    try:
+        # Get shared index
+        index_name = get_shared_index_name()
+        logger.info(f"Getting Pinecone index: {index_name}")
+        index = get_pinecone_client().Index(index_name)
+
+        # Delete vectors with matching document_id in the company's namespace
+        # Pinecone's delete with filter deletes all vectors matching the metadata filter
+        logger.info(f"Deleting vectors from Pinecone - namespace: {company_id}, document_id: {document_id}")
+        index.delete(
+            filter={"document_id": {"$eq": document_id}},
+            namespace=company_id
+        )
+        logger.info(f"Pinecone delete operation completed for document {document_id}")
+
+        return True
+
+    except Exception as e:
+        logger.error(f"Failed to delete vectors from Pinecone for document {document_id}: {str(e)}")
+        return False
+
+
 def get_vector_store_cache() -> Dict[str, PineconeVectorStore]:
     """Get the vector store cache for testing/debugging."""
     return _company_vector_stores

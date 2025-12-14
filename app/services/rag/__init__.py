@@ -37,6 +37,7 @@ from .vector_store import (
     clear_vector_store_cache,
     clear_company_knowledge_base,
     delete_company_knowledge_base,
+    delete_document_vectors,
 )
 from .retriever import create_company_retriever
 from .llm import create_llm, get_available_models, GROQ_MODEL_MAP
@@ -97,6 +98,7 @@ __all__ = [
     "clear_vector_store_cache",
     "clear_company_knowledge_base",
     "delete_company_knowledge_base",
+    "delete_document_vectors",
     # Retriever
     "create_company_retriever",
     # LLM

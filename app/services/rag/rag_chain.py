@@ -7,6 +7,7 @@ from langsmith import traceable
 from langchain_core.chat_history import BaseChatMessageHistory
 from langchain_core.runnables.history import RunnableWithMessageHistory
 from app.db.operations.chat import load_session_history
+from app.db.operations.company import get_company_by_id
 from .chains import create_conversational_rag_chain
 from .pinecone_client import (
     get_pinecone_client,
@@ -23,7 +24,7 @@ _company_rag_chains: Dict[str, Dict[str, RunnableWithMessageHistory]] = {}
 
 
 @traceable(name="get_company_rag_chain")
-def get_company_rag_chain(
+async def get_company_rag_chain(
     company_id: str, llm_model: str = "Llama-instant"
 ) -> RunnableWithMessageHistory:
     """
@@ -47,6 +48,20 @@ def get_company_rag_chain(
     if llm_model in _company_rag_chains[company_id]:
         return _company_rag_chains[company_id][llm_model]
 
+    # Fetch company information
+    company = await get_company_by_id(company_id)
+
+    # Prepare company context for the prompt
+    company_context = {
+        "company_name": company.get("name", "our company") if company else "our company",
+        "company_email": company.get("email", "support@company.com") if company else "support@company.com",
+        "company_description": ""
+    }
+
+    # Add chatbot description if available
+    if company and company.get("chatbot_description"):
+        company_context["company_description"] = f"- Description: {company['chatbot_description']}"
+
     # Create fresh components
     ensure_company_index_exists(company_id)
     index_name = get_company_index_name(company_id)  # Returns shared index name
@@ -64,9 +79,9 @@ def get_company_rag_chain(
     # Create LLM
     llm = create_llm(llm_model)
 
-    # Create conversational RAG chain
+    # Create conversational RAG chain with company context
     try:
-        rag_chain = create_conversational_rag_chain(llm, retriever)
+        rag_chain = create_conversational_rag_chain(llm, retriever, company_context)
 
         # Create session history function
         def get_session_history(chat_id: str) -> BaseChatMessageHistory:

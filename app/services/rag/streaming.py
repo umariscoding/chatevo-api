@@ -60,7 +60,7 @@ async def stream_company_response(
 
         # Get company-specific RAG chain
         try:
-            rag_chain = get_company_rag_chain(company_id, llm_model)
+            rag_chain = await get_company_rag_chain(company_id, llm_model)
         except Exception as chain_error:
             error_msg = str(chain_error)
 

@@ -36,6 +36,7 @@ async def process_company_document(
                 "source": f"document_{doc_id}" if doc_id else "uploaded_document",
                 "chunk_id": i,
                 "company_id": company_id,
+                "document_id": doc_id if doc_id else "unknown",  # Store document_id for deletion
             }
             for i in range(len(doc_chunks))
         ]

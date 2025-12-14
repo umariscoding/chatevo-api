@@ -144,7 +144,7 @@ def create_retrieval_chain(retriever, contextualization_chain):
 
 
 @traceable(name="create_qa_chain")
-def create_qa_chain(llm, retriever, contextualization_chain):
+def create_qa_chain(llm, retriever, contextualization_chain, company_context: Dict[str, str]):
     """
     Create the complete QA chain that:
     1. Contextualizes the question (if needed)
@@ -155,6 +155,7 @@ def create_qa_chain(llm, retriever, contextualization_chain):
         llm: Language model instance
         retriever: Document retriever instance
         contextualization_chain: Chain for contextualizing questions
+        company_context: Dictionary with company info (name, email, description)
 
     Returns:
         Runnable chain for complete QA process
@@ -162,7 +163,7 @@ def create_qa_chain(llm, retriever, contextualization_chain):
     # Create retrieval chain
     retrieval_chain = create_retrieval_chain(retriever, contextualization_chain)
 
-    # Create QA prompt template with last 5 messages
+    # Create QA prompt template with company context
     qa_prompt = ChatPromptTemplate.from_messages(
         [("system", qa_system_prompt), ("user", qa_user_prompt)]
     )
@@ -189,7 +190,14 @@ def create_qa_chain(llm, retriever, contextualization_chain):
         # Format chat history (last 5 messages only)
         chat_history = format_chat_history_for_qa(inputs.get("chat_history", []))
 
-        return {"context": context, "chat_history": chat_history, "input": inputs["input"]}
+        return {
+            "context": context,
+            "chat_history": chat_history,
+            "input": inputs["input"],
+            "company_name": company_context.get("company_name", "our company"),
+            "company_email": company_context.get("company_email", "support@company.com"),
+            "company_description": company_context.get("company_description", ""),
+        }
 
     # Create complete QA chain
     chain = RunnableLambda(prepare_qa_inputs) | qa_prompt | llm | StrOutputParser()
@@ -198,7 +206,7 @@ def create_qa_chain(llm, retriever, contextualization_chain):
 
 
 @traceable(name="create_conversational_rag_chain")
-def create_conversational_rag_chain(llm, retriever):
+def create_conversational_rag_chain(llm, retriever, company_context: Dict[str, str]):
     """
     Create the complete conversational RAG chain.
     This is the main chain that combines all components.
@@ -206,6 +214,7 @@ def create_conversational_rag_chain(llm, retriever):
     Args:
         llm: Language model instance
         retriever: Document retriever instance
+        company_context: Dictionary with company info (name, email, description)
 
     Returns:
         Complete conversational RAG chain
@@ -213,7 +222,7 @@ def create_conversational_rag_chain(llm, retriever):
     # Create contextualization chain
     contextualization_chain = create_contextualization_chain(llm)
 
-    # Create QA chain
-    qa_chain = create_qa_chain(llm, retriever, contextualization_chain)
+    # Create QA chain with company context
+    qa_chain = create_qa_chain(llm, retriever, contextualization_chain, company_context)
 
     return qa_chain
