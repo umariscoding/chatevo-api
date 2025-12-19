@@ -6,7 +6,7 @@ from fastapi import APIRouter, HTTPException, status, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 from typing import Dict, Any
-from app.models.models import CompanyRegisterModel, CompanyLoginModel, CompanySlugModel, PublishChatbotModel, ChatbotInfoModel, BatchUpdateSettingsModel
+from app.models.models import CompanyRegisterModel, CompanyLoginModel, CompanySlugModel, PublishChatbotModel, ChatbotInfoModel, BatchUpdateSettingsModel, EmbedSettingsModel
 from app.auth import (
     create_company_tokens, verify_password, get_password_hash,
     refresh_access_token, get_current_user_info
@@ -15,7 +15,7 @@ from app.auth.dependencies import get_current_company, UserContext
 from app.db.operations.company import (
     create_company, authenticate_company, get_company_by_id,
     update_company_slug, publish_chatbot, update_chatbot_info, get_company_by_slug,
-    batch_update_settings
+    batch_update_settings, get_embed_settings, update_embed_settings
 )
 from app.db.operations.user import get_users_by_company_id
 from app.core.config import get_chatbot_url
@@ -630,12 +630,81 @@ async def batch_update_settings_endpoint(
             detail=f"Failed to update settings: {str(e)}"
         )
 
+@router.get("/company/embed-settings")
+async def get_embed_settings_endpoint(
+    current_company: UserContext = Depends(get_current_company)
+) -> Dict[str, Any]:
+    """
+    Get embed widget settings for the company.
+
+    Args:
+        current_company: Current company context
+
+    Returns:
+        dict: Embed settings
+    """
+    try:
+        settings = await get_embed_settings(current_company.company_id)
+        return {
+            "settings": settings
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get embed settings: {str(e)}"
+        )
+
+
+@router.put("/company/embed-settings")
+async def update_embed_settings_endpoint(
+    settings_data: EmbedSettingsModel,
+    current_company: UserContext = Depends(get_current_company)
+) -> Dict[str, Any]:
+    """
+    Update embed widget settings for the company.
+
+    Args:
+        settings_data: Embed settings to update
+        current_company: Current company context
+
+    Returns:
+        dict: Updated embed settings
+    """
+    try:
+        updated_settings = await update_embed_settings(
+            company_id=current_company.company_id,
+            theme=settings_data.theme,
+            position=settings_data.position,
+            primary_color=settings_data.primaryColor,
+            welcome_text=settings_data.welcomeText,
+            subtitle_text=settings_data.subtitleText
+        )
+
+        if updated_settings is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Company not found"
+            )
+
+        return {
+            "message": "Embed settings updated successfully",
+            "settings": updated_settings
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to update embed settings: {str(e)}"
+        )
+
+
 # Health check endpoint
 @router.get("/health")
 async def health_check() -> Dict[str, str]:
     """
     Health check endpoint for authentication service.
-    
+
     Returns:
         Dict containing health status
     """

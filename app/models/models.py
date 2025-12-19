@@ -190,3 +190,10 @@ class PublicChatMessage(BaseModel):
     message: str
     chat_id: Optional[str] = None
     model: str = "Llama-instant"  # Default to fast Llama model
+
+class EmbedSettingsModel(BaseModel):
+    theme: Optional[str] = "dark"  # dark, light
+    position: Optional[str] = "right"  # left, right
+    primaryColor: Optional[str] = "#6366f1"
+    welcomeText: Optional[str] = "Hi there! How can we help you today?"
+    subtitleText: Optional[str] = "We typically reply instantly"

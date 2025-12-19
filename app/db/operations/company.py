@@ -296,3 +296,90 @@ async def batch_update_settings(
     if not res.data:
         return None
     return res.data[0]
+
+
+async def get_embed_settings(company_id: str) -> Dict[str, Any]:
+    """
+    Get embed widget settings for a company.
+
+    Args:
+        company_id: Company ID
+
+    Returns:
+        Embed settings dictionary (from settings.embed or defaults)
+    """
+    company = await get_company_by_id(company_id)
+    if not company:
+        return {}
+
+    settings = company.get("settings") or {}
+    embed_settings = settings.get("embed") or {}
+
+    # Return with defaults
+    return {
+        "theme": embed_settings.get("theme", "dark"),
+        "position": embed_settings.get("position", "right"),
+        "primaryColor": embed_settings.get("primaryColor", "#6366f1"),
+        "welcomeText": embed_settings.get("welcomeText", "Hi there! How can we help you today?"),
+        "subtitleText": embed_settings.get("subtitleText", "We typically reply instantly"),
+    }
+
+
+async def update_embed_settings(
+    company_id: str,
+    theme: Optional[str] = None,
+    position: Optional[str] = None,
+    primary_color: Optional[str] = None,
+    welcome_text: Optional[str] = None,
+    subtitle_text: Optional[str] = None,
+) -> Optional[Dict[str, Any]]:
+    """
+    Update embed widget settings for a company.
+
+    Args:
+        company_id: Company ID
+        theme: Widget theme (dark/light)
+        position: Widget position (left/right)
+        primary_color: Primary color hex
+        welcome_text: Welcome message
+        subtitle_text: Subtitle text
+
+    Returns:
+        Updated embed settings
+    """
+    # Get current company settings
+    company = await get_company_by_id(company_id)
+    if not company:
+        return None
+
+    # Get current settings or create empty dict
+    current_settings = company.get("settings") or {}
+    embed_settings = current_settings.get("embed") or {}
+
+    # Update only provided fields
+    if theme is not None:
+        embed_settings["theme"] = theme
+    if position is not None:
+        embed_settings["position"] = position
+    if primary_color is not None:
+        embed_settings["primaryColor"] = primary_color
+    if welcome_text is not None:
+        embed_settings["welcomeText"] = welcome_text
+    if subtitle_text is not None:
+        embed_settings["subtitleText"] = subtitle_text
+
+    # Update settings with embed
+    current_settings["embed"] = embed_settings
+
+    # Save to database
+    res = (
+        db.table("companies")
+        .update({"settings": current_settings})
+        .eq("company_id", company_id)
+        .execute()
+    )
+
+    if not res.data:
+        return None
+
+    return embed_settings
