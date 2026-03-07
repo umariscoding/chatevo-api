@@ -29,4 +29,4 @@ install: venv
 
 # Run the FastAPI app using the venv
 run:
-	@bash -lc '.venv/bin/python -m uvicorn app.main:app --reload --port 8081'
+	@bash -lc '.venv/bin/python -m uvicorn app.main:app --reload --port 8000'

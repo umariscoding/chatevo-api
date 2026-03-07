@@ -15,8 +15,14 @@ from app.utils.password import get_password_hash, verify_password
 
 # Create new database for multi-tenant setup
 engine = create_engine(DATABASE_URL)
-Base.metadata.create_all(engine)
 SessionLocal = sessionmaker(bind=engine)
+
+def init_db():
+    """Initialize database tables. Called during app startup."""
+    try:
+        Base.metadata.create_all(engine)
+    except SQLAlchemyError as e:
+        print(f"Warning: Could not initialize database tables: {e}")
 
 def get_db():
     """

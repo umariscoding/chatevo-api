@@ -7,8 +7,14 @@ from app.api.user_endpoints import router as user_router
 from app.api.chat_endpoints import router as chat_router
 from app.api.public_endpoints import router as public_router
 from app.api.analytics_endpoints import router as analytics_router
+from app.db.database import init_db
 
 app = FastAPI()
+
+@app.on_event("startup")
+async def startup_event():
+    """Initialize database tables on startup."""
+    init_db()
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
