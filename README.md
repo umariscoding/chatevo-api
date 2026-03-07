@@ -29,7 +29,20 @@ A FastAPI-based multi-tenant chatbot platform that provides Chatbot-as-a-Service
    cd chat-backend
    ```
 
-2. **Install dependencies**
+2. **Install dependencies (recommended)**
+
+   Use the provided `Makefile` to install system packages, create a virtual
+   environment at `.venv`, and install Python dependencies:
+
+   ```bash
+   make setup    # install libpq and python@3.11 (Homebrew)
+   make venv     # create .venv using Homebrew's python3.11
+   make install  # install Python dependencies into .venv
+   ```
+
+   Alternatively, to install directly into your active Python environment (not
+   recommended because system packages like `libpq` may be required):
+
    ```bash
    pip install -r requirements.txt
    ```
