@@ -6,6 +6,19 @@ from typing import Dict, Any, List, Optional
 from .client import db, generate_id
 
 
+def _update_kb_file_count(kb_id: str):
+    """Recount documents and update the knowledge base file_count."""
+    count_res = db.table("documents")\
+        .select("doc_id", count="exact")\
+        .eq("kb_id", kb_id)\
+        .execute()
+    file_count = count_res.count if count_res.count is not None else 0
+    db.table("knowledge_bases")\
+        .update({"file_count": file_count})\
+        .eq("kb_id", kb_id)\
+        .execute()
+
+
 async def save_document(
     kb_id: str,
     filename: str,
@@ -31,13 +44,24 @@ async def save_document(
     # if file_url:
     #     doc_data["file_url"] = file_url
 
-    res = db.table("documents").upsert(
-        doc_data,
-        on_conflict="kb_id,filename"
-    ).execute()
+    # Check if document with same filename already exists in this KB
+    existing = db.table("documents")\
+        .select("doc_id")\
+        .eq("kb_id", kb_id)\
+        .eq("filename", filename)\
+        .execute()
 
-    if "created" in res.data[0] or "updated" in res.data[0]:
-        db.rpc("increment_kb_file_count", {"kb_id_param": kb_id}).execute()
+    if existing.data:
+        # Update existing document
+        doc_data.pop("doc_id")  # Don't overwrite existing ID
+        res = db.table("documents")\
+            .update(doc_data)\
+            .eq("doc_id", existing.data[0]["doc_id"])\
+            .execute()
+    else:
+        # Insert new document and update file count
+        res = db.table("documents").insert(doc_data).execute()
+        _update_kb_file_count(kb_id)
 
     # Add file_url to response even if not stored in database
     result = res.data[0]
@@ -130,7 +154,7 @@ async def delete_document(doc_id: str, company_id: str) -> bool:
     # Delete the document from database
     logger.info(f"Deleting document {doc_id} from database")
     db.table("documents").delete().eq("doc_id", doc_id).execute()
-    db.rpc("decrement_kb_file_count", {"kb_id_param": kb_id}).execute()
+    _update_kb_file_count(kb_id)
     logger.info(f"Successfully deleted document {doc_id} from database")
 
     return True

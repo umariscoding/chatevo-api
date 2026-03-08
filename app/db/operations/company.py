@@ -61,9 +61,9 @@ async def create_company(
     if email:
         company_data["email"] = email
     if password:
-        company_data["password"] = password
+        company_data["password_hash"] = password
     if api_key:
-        company_data["api_key"] = api_key
+        company_data["api_keys"] = api_key
 
     res = db.table("companies").insert(company_data).execute()
     return res.data[0]
@@ -71,7 +71,7 @@ async def create_company(
 
 async def get_company_by_api_key(api_key: str) -> Optional[Dict[str, Any]]:
     """Get company by API key."""
-    res = db.table("companies").select("*").eq("api_key", api_key).execute()
+    res = db.table("companies").select("*").eq("api_keys", api_key).execute()
     if not res.data:
         return None
     return res.data[0]
@@ -153,7 +153,7 @@ async def authenticate_company(email: str, password: str) -> Optional[Dict[str, 
     company = res.data[0]
 
     # Verify password
-    if not verify_password(password, company.get("password", "")):
+    if not verify_password(password, company.get("password_hash", "")):
         return None
 
     return company
