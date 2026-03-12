@@ -9,7 +9,8 @@ from typing import Dict, Any, Optional
 from app.models.models import PublicChatMessage
 from app.db.operations.company import (
     get_published_company_info,
-    get_company_by_slug
+    get_company_by_slug,
+    get_embed_settings_by_slug
 )
 from app.db.operations.guest import create_guest_session
 from app.db.operations.chat import create_chat, get_chat_by_id
@@ -298,6 +299,29 @@ async def get_public_chatbot_info(company_slug: str) -> PublicCompanyInfo:
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get chatbot info: {str(e)}"
         )
+
+@router.get("/chatbot/{company_slug}/embed-settings")
+async def get_public_embed_settings(company_slug: str) -> Dict[str, Any]:
+    """
+    Get embed widget settings for a published chatbot (public, no auth required).
+    Used by embed.js to fetch the latest settings from the backend.
+    """
+    try:
+        settings = await get_embed_settings_by_slug(company_slug)
+        if not settings:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Chatbot not found or not published"
+            )
+        return {"settings": settings}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get embed settings: {str(e)}"
+        )
+
 
 @router.post("/chatbot/{company_slug}/chat")
 async def send_public_message(

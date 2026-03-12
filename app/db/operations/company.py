@@ -298,15 +298,51 @@ async def batch_update_settings(
     return res.data[0]
 
 
+EMBED_DEFAULTS = {
+    "theme": "dark",
+    "position": "right",
+    "primaryColor": "#6366f1",
+    "headerColor": "",
+    "welcomeText": "Hi there! How can we help you today?",
+    "subtitleText": "We typically reply instantly",
+    "placeholderText": "Type your message...",
+    "initialMessage": "",
+    "hideBranding": False,
+    "autoOpenDelay": 0,
+    "buttonIcon": "chat",
+    "botDisplayName": "",
+    "chatTemplate": "default",
+}
+
+
+def _apply_embed_defaults(embed_settings: Dict[str, Any]) -> Dict[str, Any]:
+    """Apply defaults to embed settings dict."""
+    return {key: embed_settings.get(key, default) for key, default in EMBED_DEFAULTS.items()}
+
+
+async def get_embed_settings_by_slug(slug: str) -> Optional[Dict[str, Any]]:
+    """
+    Get embed widget settings for a published company by slug (public access).
+    """
+    res = (
+        db.table("companies")
+        .select("settings, is_published")
+        .eq("slug", slug)
+        .eq("is_published", True)
+        .execute()
+    )
+    if not res.data:
+        return None
+
+    company = res.data[0]
+    settings = company.get("settings") or {}
+    embed_settings = settings.get("embed") or {}
+    return _apply_embed_defaults(embed_settings)
+
+
 async def get_embed_settings(company_id: str) -> Dict[str, Any]:
     """
     Get embed widget settings for a company.
-
-    Args:
-        company_id: Company ID
-
-    Returns:
-        Embed settings dictionary (from settings.embed or defaults)
     """
     company = await get_company_by_id(company_id)
     if not company:
@@ -314,38 +350,16 @@ async def get_embed_settings(company_id: str) -> Dict[str, Any]:
 
     settings = company.get("settings") or {}
     embed_settings = settings.get("embed") or {}
-
-    # Return with defaults
-    return {
-        "theme": embed_settings.get("theme", "dark"),
-        "position": embed_settings.get("position", "right"),
-        "primaryColor": embed_settings.get("primaryColor", "#6366f1"),
-        "welcomeText": embed_settings.get("welcomeText", "Hi there! How can we help you today?"),
-        "subtitleText": embed_settings.get("subtitleText", "We typically reply instantly"),
-    }
+    return _apply_embed_defaults(embed_settings)
 
 
 async def update_embed_settings(
     company_id: str,
-    theme: Optional[str] = None,
-    position: Optional[str] = None,
-    primary_color: Optional[str] = None,
-    welcome_text: Optional[str] = None,
-    subtitle_text: Optional[str] = None,
+    **kwargs
 ) -> Optional[Dict[str, Any]]:
     """
     Update embed widget settings for a company.
-
-    Args:
-        company_id: Company ID
-        theme: Widget theme (dark/light)
-        position: Widget position (left/right)
-        primary_color: Primary color hex
-        welcome_text: Welcome message
-        subtitle_text: Subtitle text
-
-    Returns:
-        Updated embed settings
+    Accepts any embed setting fields as keyword arguments.
     """
     # Get current company settings
     company = await get_company_by_id(company_id)
@@ -357,16 +371,9 @@ async def update_embed_settings(
     embed_settings = current_settings.get("embed") or {}
 
     # Update only provided fields
-    if theme is not None:
-        embed_settings["theme"] = theme
-    if position is not None:
-        embed_settings["position"] = position
-    if primary_color is not None:
-        embed_settings["primaryColor"] = primary_color
-    if welcome_text is not None:
-        embed_settings["welcomeText"] = welcome_text
-    if subtitle_text is not None:
-        embed_settings["subtitleText"] = subtitle_text
+    for key, value in kwargs.items():
+        if value is not None:
+            embed_settings[key] = value
 
     # Update settings with embed
     current_settings["embed"] = embed_settings

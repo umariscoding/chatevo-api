@@ -675,9 +675,17 @@ async def update_embed_settings_endpoint(
             company_id=current_company.company_id,
             theme=settings_data.theme,
             position=settings_data.position,
-            primary_color=settings_data.primaryColor,
-            welcome_text=settings_data.welcomeText,
-            subtitle_text=settings_data.subtitleText
+            primaryColor=settings_data.primaryColor,
+            headerColor=settings_data.headerColor,
+            welcomeText=settings_data.welcomeText,
+            subtitleText=settings_data.subtitleText,
+            placeholderText=settings_data.placeholderText,
+            initialMessage=settings_data.initialMessage,
+            hideBranding=settings_data.hideBranding,
+            autoOpenDelay=settings_data.autoOpenDelay,
+            buttonIcon=settings_data.buttonIcon,
+            botDisplayName=settings_data.botDisplayName,
+            chatTemplate=settings_data.chatTemplate,
         )
 
         if updated_settings is None:

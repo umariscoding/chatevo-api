@@ -195,5 +195,13 @@ class EmbedSettingsModel(BaseModel):
     theme: Optional[str] = "dark"  # dark, light
     position: Optional[str] = "right"  # left, right
     primaryColor: Optional[str] = "#6366f1"
+    headerColor: Optional[str] = ""  # empty = use primaryColor
     welcomeText: Optional[str] = "Hi there! How can we help you today?"
     subtitleText: Optional[str] = "We typically reply instantly"
+    placeholderText: Optional[str] = "Type your message..."
+    initialMessage: Optional[str] = ""
+    hideBranding: Optional[bool] = False
+    autoOpenDelay: Optional[int] = 0  # 0 = disabled, otherwise seconds
+    buttonIcon: Optional[str] = "chat"  # chat, message, headset, sparkle, bolt, help, robot
+    botDisplayName: Optional[str] = ""
+    chatTemplate: Optional[str] = "default"  # default, bubbles, minimal
