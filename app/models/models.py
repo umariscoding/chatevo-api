@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from sqlalchemy import Column, Integer, String, Text, ForeignKey, Boolean, DateTime, JSON
+from sqlalchemy import Column, Integer, String, Text, ForeignKey, Boolean, DateTime, JSON, BigInteger
 from sqlalchemy.orm import relationship, declarative_base
 from sqlalchemy.sql import func
 from typing import Optional
@@ -131,7 +131,7 @@ class Message(Base):
     company_id = Column(String, ForeignKey("companies.company_id"), nullable=False)
     role = Column(String, nullable=False)  # human, ai, system
     content = Column(Text, nullable=False)
-    timestamp = Column(Integer, default=lambda: int(time.time()))
+    timestamp = Column(BigInteger, default=lambda: int(time.time() * 1000))
     created_at = Column(DateTime, default=func.now())
     
     # Relationships
