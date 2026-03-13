@@ -846,7 +846,7 @@
                 if (data.type === 'start') {
                   chatId = data.chat_id;
                 } else if (data.type === 'chunk' && data.content) {
-                  fullResponse += data.content.replace(/\\n/g, '\n').replace(/\\r/g, '\r').replace(/\\"/g, '"');
+                  fullResponse += data.content;
                   if (!aiDiv) aiDiv = addBotMessage('');
                   aiDiv.querySelector('.chatevo-message-content').innerHTML = escapeHtml(fullResponse) + '<span class="chatevo-cursor"></span>';
                   scrollToBottom();

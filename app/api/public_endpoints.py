@@ -171,12 +171,11 @@ async def send_subdomain_message(
                     llm_model=message_data.model
                 ):
                     response_buffer.append(chunk)
-                    escaped_chunk = chunk.replace('"', '\\"').replace('\n', '\\n').replace('\r', '\\r')
-                    yield f"data: {json.dumps({'content': escaped_chunk, 'type': 'chunk'})}\n\n"
-                
+                    yield f"data: {json.dumps({'content': chunk, 'type': 'chunk'})}\n\n"
+
                 # Send completion signal
                 yield f"data: {json.dumps({'type': 'end'})}\n\n"
-                
+
                 # Save complete AI response
                 complete_response = ''.join(response_buffer)
                 await save_message(
@@ -185,10 +184,9 @@ async def send_subdomain_message(
                     role="ai",
                     content=complete_response
                 )
-                
+
             except Exception as e:
-                error_msg = str(e).replace('"', '\\"')
-                yield f"data: {json.dumps({'error': error_msg, 'type': 'error'})}\n\n"
+                yield f"data: {json.dumps({'error': str(e), 'type': 'error'})}\n\n"
         
         return StreamingResponse(
             stream_and_save(),
@@ -402,14 +400,11 @@ async def send_public_message(
                     llm_model=message_data.model
                 ):
                     response_buffer.append(chunk)
-                    escaped_chunk = chunk.replace('"', '\\"').replace('\n', '\\n').replace('\r', '\\r')
-                    chunk_data = {'content': escaped_chunk, 'type': 'chunk'}
-                    yield f"data: {json.dumps(chunk_data)}\n\n"
-                
+                    yield f"data: {json.dumps({'content': chunk, 'type': 'chunk'})}\n\n"
+
                 # Send completion signal
-                end_data = {'type': 'end'}
-                yield f"data: {json.dumps(end_data)}\n\n"
-                
+                yield f"data: {json.dumps({'type': 'end'})}\n\n"
+
                 # Save complete AI response
                 complete_response = ''.join(response_buffer)
                 await save_message(
@@ -418,11 +413,9 @@ async def send_public_message(
                     role="ai",
                     content=complete_response
                 )
-                
+
             except Exception as e:
-                error_msg = str(e).replace('"', '\\"')
-                error_data = {'error': error_msg, 'type': 'error'}
-                yield f"data: {json.dumps(error_data)}\n\n"
+                yield f"data: {json.dumps({'error': str(e), 'type': 'error'})}\n\n"
         return StreamingResponse(
             stream_and_save(),
             media_type="text/event-stream",

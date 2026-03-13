@@ -2,6 +2,7 @@
 Response streaming for RAG chains.
 """
 
+import asyncio
 from typing import AsyncGenerator
 from .rag_chain import get_company_rag_chain
 from .api_keys import (
@@ -94,12 +95,14 @@ async def stream_company_response(
                     response_started = True
                     if chunk:
                         yield chunk
+                        await asyncio.sleep(0.03)
                 # Fallback for dict format (backward compatibility)
                 elif isinstance(chunk, dict) and "answer" in chunk:
                     response_started = True
                     chunk_content = chunk["answer"]
                     if chunk_content:
                         yield chunk_content
+                        await asyncio.sleep(0.03)
 
             # If no response was generated
             if not response_started:
