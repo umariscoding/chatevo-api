@@ -27,7 +27,7 @@ class Company(Base):
     published_at = Column(DateTime, nullable=True)  # when chatbot was published
     chatbot_title = Column(String, nullable=True)  # custom chatbot title
     chatbot_description = Column(String, nullable=True)  # custom chatbot description
-    default_model = Column(String, nullable=True, default="Llama-instant")  # default LLM model
+    default_model = Column(String, nullable=True, default="Llama-large")  # default LLM model
     system_prompt = Column(Text, nullable=True)  # custom system prompt (appended to default)
     tone = Column(String, nullable=True, default="professional")  # chatbot tone
     api_keys = Column(JSON, default=dict)  # store encrypted API keys
@@ -195,7 +195,7 @@ class BatchUpdateSettingsModel(BaseModel):
 class PublicChatMessage(BaseModel):
     message: str
     chat_id: Optional[str] = None
-    model: str = "Llama-instant"  # Default to fast Llama model
+    model: str = "Llama-large"  # Default to Llama 3.3 70B
 
 class EmbedSettingsModel(BaseModel):
     theme: Optional[str] = "dark"  # dark, light

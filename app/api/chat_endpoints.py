@@ -51,7 +51,7 @@ class ChatMessage(BaseModel):
     message: str
     chat_id: Optional[str] = None
     chat_title: Optional[str] = "New Chat"
-    model: str = "Llama-instant"  # Options: Llama-instant, Llama-large, OpenAI, Claude, Cohere
+    model: str = "Llama-large"  # Options: Llama-instant, Llama-large, GPT-OSS-120B, GPT-OSS-20B, OpenAI, Claude, Cohere
 
 class ChatTitleUpdate(BaseModel):
     title: str

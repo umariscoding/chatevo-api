@@ -602,7 +602,7 @@ async def batch_update_settings_endpoint(
 
         # Validate model if provided
         if settings_data.default_model is not None:
-            valid_models = ["Llama-instant", "Llama-large", "OpenAI", "Claude", "Cohere"]
+            valid_models = ["Llama-instant", "Llama-large", "GPT-OSS-120B", "GPT-OSS-20B", "OpenAI", "Claude", "Cohere"]
             if settings_data.default_model not in valid_models:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
