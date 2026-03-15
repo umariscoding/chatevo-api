@@ -45,6 +45,7 @@ from .rag_chain import (
     get_company_rag_chain,
     get_rag_chain_cache,
     clear_rag_chain_cache,
+    clear_company_rag_chain_cache,
 )
 from .streaming import stream_company_response
 from .document_processor import process_company_document
@@ -109,6 +110,7 @@ __all__ = [
     "get_company_rag_chain",
     "get_rag_chain_cache",
     "clear_rag_chain_cache",
+    "clear_company_rag_chain_cache",
     # Streaming
     "stream_company_response",
     # Document Processing

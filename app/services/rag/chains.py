@@ -163,9 +163,30 @@ def create_qa_chain(llm, retriever, contextualization_chain, company_context: Di
     # Create retrieval chain
     retrieval_chain = create_retrieval_chain(retriever, contextualization_chain)
 
+    # Build tone instruction block
+    tone = company_context.get("tone", "professional")
+    tone_instructions_map = {
+        "professional": "## TONE & STYLE\n\nYou MUST be friendly but professional. Be helpful, clear, confident, and polite. Use natural customer-service warmth.",
+        "friendly": "## TONE & STYLE\n\nYou MUST use a warm, friendly, and approachable tone in EVERY response. Be enthusiastic, use casual language, add exclamation marks, and sound genuinely excited to help! Never sound robotic or formal.",
+        "casual": "## TONE & STYLE\n\nYou MUST use a very casual, relaxed tone in EVERY response. Talk like a friend would — use contractions, simple language, and be laid-back. Never sound corporate or stiff.",
+        "formal": "## TONE & STYLE\n\nYou MUST use a formal, polished tone in EVERY response. Be precise, use proper grammar, avoid contractions, and maintain a corporate-level professionalism throughout.",
+        "witty": "## TONE & STYLE\n\nYou MUST use a witty, clever tone in EVERY response. Add humor, wordplay, puns, or clever observations. Be playful and entertaining while still being helpful. Never be dry or boring.",
+    }
+    tone_block = tone_instructions_map.get(tone, tone_instructions_map["professional"])
+
+    # Add custom instructions to tone block if provided
+    custom_prompt = company_context.get("custom_system_prompt", "")
+    if custom_prompt:
+        # Escape curly braces so LangChain doesn't treat them as template vars
+        custom_prompt = custom_prompt.replace("{", "{{").replace("}", "}}")
+        tone_block += f"\n\n## ADDITIONAL INSTRUCTIONS (MUST FOLLOW)\n\n{custom_prompt}"
+
+    # Use the default system prompt with tone_instruction as a template variable
+    system_prompt = qa_system_prompt
+
     # Create QA prompt template with company context
     qa_prompt = ChatPromptTemplate.from_messages(
-        [("system", qa_system_prompt), ("user", qa_user_prompt)]
+        [("system", system_prompt), ("user", qa_user_prompt)]
     )
 
     def format_documents(docs):
@@ -197,6 +218,7 @@ def create_qa_chain(llm, retriever, contextualization_chain, company_context: Di
             "company_name": company_context.get("company_name", "our company"),
             "company_email": company_context.get("company_email", "support@company.com"),
             "company_description": company_context.get("company_description", ""),
+            "tone_instruction": tone_block,
         }
 
     # Create complete QA chain

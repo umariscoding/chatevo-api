@@ -562,7 +562,10 @@ async def batch_update_settings_endpoint(
         if (settings_data.slug is None and
             settings_data.chatbot_title is None and
             settings_data.chatbot_description is None and
-            settings_data.is_published is None):
+            settings_data.is_published is None and
+            settings_data.default_model is None and
+            settings_data.system_prompt is None and
+            settings_data.tone is None):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="At least one field must be provided"
@@ -597,13 +600,34 @@ async def batch_update_settings_endpoint(
                     detail="Company must have a slug before publishing"
                 )
 
+        # Validate model if provided
+        if settings_data.default_model is not None:
+            valid_models = ["Llama-instant", "Llama-large", "OpenAI", "Claude", "Cohere"]
+            if settings_data.default_model not in valid_models:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Invalid model. Must be one of: {', '.join(valid_models)}"
+                )
+
+        # Validate tone if provided
+        if settings_data.tone is not None:
+            valid_tones = ["professional", "friendly", "casual", "formal", "witty"]
+            if settings_data.tone not in valid_tones:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Invalid tone. Must be one of: {', '.join(valid_tones)}"
+                )
+
         # Perform batch update
         updated_company = await batch_update_settings(
             company_id=current_company.company_id,
             slug=settings_data.slug,
             chatbot_title=settings_data.chatbot_title,
             chatbot_description=settings_data.chatbot_description,
-            is_published=settings_data.is_published
+            is_published=settings_data.is_published,
+            default_model=settings_data.default_model,
+            system_prompt=settings_data.system_prompt,
+            tone=settings_data.tone,
         )
 
         if not updated_company:
@@ -611,6 +635,14 @@ async def batch_update_settings_endpoint(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Failed to update settings"
             )
+
+        # Invalidate RAG chain cache if model or system prompt changed
+        if settings_data.default_model is not None or settings_data.system_prompt is not None or settings_data.tone is not None:
+            try:
+                from app.services.rag import clear_company_rag_chain_cache
+                clear_company_rag_chain_cache(current_company.company_id)
+            except Exception:
+                pass  # Non-critical, chain will be recreated on next request
 
         return {
             "message": "Settings updated successfully",

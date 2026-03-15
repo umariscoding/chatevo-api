@@ -241,6 +241,9 @@ async def batch_update_settings(
     chatbot_title: Optional[str] = None,
     chatbot_description: Optional[str] = None,
     is_published: Optional[bool] = None,
+    default_model: Optional[str] = None,
+    system_prompt: Optional[str] = None,
+    tone: Optional[str] = None,
 ) -> Optional[Dict[str, Any]]:
     """
     Batch update company settings.
@@ -251,6 +254,8 @@ async def batch_update_settings(
         chatbot_title: Optional chatbot title
         chatbot_description: Optional chatbot description
         is_published: Optional publish status
+        default_model: Optional default LLM model
+        system_prompt: Optional custom system prompt
 
     Returns:
         Updated company record
@@ -281,6 +286,14 @@ async def batch_update_settings(
         update_data["chatbot_title"] = chatbot_title
     if chatbot_description is not None:
         update_data["chatbot_description"] = chatbot_description
+
+    # Add model and system prompt if provided
+    if default_model is not None:
+        update_data["default_model"] = default_model
+    if system_prompt is not None:
+        update_data["system_prompt"] = system_prompt
+    if tone is not None:
+        update_data["tone"] = tone
 
     # Add publish status if provided
     if is_published is not None:

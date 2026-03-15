@@ -27,6 +27,9 @@ class Company(Base):
     published_at = Column(DateTime, nullable=True)  # when chatbot was published
     chatbot_title = Column(String, nullable=True)  # custom chatbot title
     chatbot_description = Column(String, nullable=True)  # custom chatbot description
+    default_model = Column(String, nullable=True, default="Llama-instant")  # default LLM model
+    system_prompt = Column(Text, nullable=True)  # custom system prompt (appended to default)
+    tone = Column(String, nullable=True, default="professional")  # chatbot tone
     api_keys = Column(JSON, default=dict)  # store encrypted API keys
     settings = Column(JSON, default=dict)  # chatbot customization settings
     created_at = Column(DateTime, default=func.now())
@@ -184,6 +187,9 @@ class BatchUpdateSettingsModel(BaseModel):
     chatbot_title: Optional[str] = None
     chatbot_description: Optional[str] = None
     is_published: Optional[bool] = None
+    default_model: Optional[str] = None
+    system_prompt: Optional[str] = None
+    tone: Optional[str] = None
 
 
 class PublicChatMessage(BaseModel):

@@ -55,7 +55,9 @@ async def get_company_rag_chain(
     company_context = {
         "company_name": company.get("name", "our company") if company else "our company",
         "company_email": company.get("email", "support@company.com") if company else "support@company.com",
-        "company_description": ""
+        "company_description": "",
+        "custom_system_prompt": company.get("system_prompt", "") if company else "",
+        "tone": company.get("tone", "professional") if company else "professional",
     }
 
     # Add chatbot description if available
@@ -112,6 +114,13 @@ async def get_company_rag_chain(
 def get_rag_chain_cache() -> Dict[str, Dict[str, RunnableWithMessageHistory]]:
     """Get the RAG chain cache for testing/debugging."""
     return _company_rag_chains
+
+
+def clear_company_rag_chain_cache(company_id: str):
+    """Clear cached RAG chains for a specific company (e.g. after settings change)."""
+    global _company_rag_chains
+    if company_id in _company_rag_chains:
+        del _company_rag_chains[company_id]
 
 
 def clear_rag_chain_cache():
