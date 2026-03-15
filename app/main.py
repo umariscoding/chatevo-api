@@ -128,7 +128,7 @@ async def serve_embed_script():
 @app.get("/preview/{company_slug}")
 async def serve_widget_preview(company_slug: str, request: Request):
     """Serve a full-page preview of the embed widget for a company."""
-    base_url = str(request.base_url).rstrip("/")
+    base_url = str(request.base_url).rstrip("/").replace("http://", "https://", 1)
     html = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
