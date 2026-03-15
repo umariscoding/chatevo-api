@@ -44,12 +44,15 @@ async def get_company_rag_chain(
     if company_id not in _company_rag_chains:
         _company_rag_chains[company_id] = {}
 
-    # Check if we have a cached RAG chain for this company and model
+    # Fetch company information first so we can resolve the authoritative model
+    company = await get_company_by_id(company_id)
+
+    # Always use the model saved in the company's DB settings, ignoring client-sent value
+    llm_model = (company.get("default_model") or "Llama-large") if company else "Llama-large"
+
+    # Check cache using the resolved model
     if llm_model in _company_rag_chains[company_id]:
         return _company_rag_chains[company_id][llm_model]
-
-    # Fetch company information
-    company = await get_company_by_id(company_id)
 
     # Prepare company context for the prompt
     company_context = {

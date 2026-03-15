@@ -13,11 +13,15 @@ from .api_keys import (
 
 
 # Model mapping: friendly name -> actual model ID
+# All Groq-* models use the Groq API key regardless of underlying provider
 GROQ_MODEL_MAP: Dict[str, str] = {
-    "Llama-instant": "llama-3.1-8b-instant",
-    "Llama-large": "llama-3.3-70b-versatile",
+    # Production models (stable, recommended for production use)
+    "Llama-instant": "llama-3.1-8b-instant",       # 560 t/s
+    "Llama-large": "llama-3.3-70b-versatile",       # 280 t/s
+    "GPT-OSS-120B": "openai/gpt-oss-120b",          # 500 t/s — OpenAI open weights via Groq
+    "GPT-OSS-20B": "openai/gpt-oss-20b",            # 1000 t/s — fastest production model
     # Legacy support
-    "Groq": "llama-3.1-8b-instant",  # Default to instant model
+    "Groq": "llama-3.1-8b-instant",
 }
 
 
@@ -28,7 +32,7 @@ def get_available_models():
     Returns:
         List of model names
     """
-    return ["Llama-instant", "Llama-large", "OpenAI", "Claude", "Cohere"]
+    return ["Llama-instant", "Llama-large", "GPT-OSS-120B", "GPT-OSS-20B", "OpenAI", "Claude", "Cohere"]
 
 
 def create_llm(llm_model: str = "Llama-instant"):

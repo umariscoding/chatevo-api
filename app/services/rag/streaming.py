@@ -10,44 +10,53 @@ from .api_keys import (
     get_openai_api_key,
     get_cohere_api_key,
     get_anthropic_api_key,
-    get_pinecone_api_key
+    get_pinecone_api_key,
 )
+from app.db.operations.company import get_company_by_id
+
+# All model IDs that route through Groq
+GROQ_MODELS = {"Groq", "Llama-instant", "Llama-large", "GPT-OSS-120B", "GPT-OSS-20B"}
 
 
 async def stream_company_response(
-    company_id: str, query: str, chat_id: str, llm_model: str = "Llama-instant"
+    company_id: str, query: str, chat_id: str, llm_model: str = "Llama-large"  # noqa: ARG001 — ignored, model resolved from DB
 ) -> AsyncGenerator[str, None]:
     """
     Stream response from company-specific RAG chain.
+    The llm_model parameter is ignored — the model is always resolved from the
+    company's saved settings in the database.
 
     Args:
         company_id: Company ID
         query: User query
         chat_id: Chat ID
-        llm_model: LLM model to use (default: Llama-instant)
+        llm_model: Ignored. Model is resolved from company DB settings.
 
     Yields:
         Response chunks
     """
     try:
-        # Check API keys based on the model
-        # Llama models (Llama-instant, Llama-large) and legacy "Groq" use Groq API
-        if llm_model in ["Groq", "Llama-instant", "Llama-large"]:
+        # Resolve the company's configured model from DB
+        company = await get_company_by_id(company_id)
+        resolved_model = (company.get("default_model") or "Llama-large") if company else "Llama-large"
+
+        # Check API keys based on the resolved model
+        if resolved_model in GROQ_MODELS:
             groq_key = get_groq_api_key()
             if not groq_key or groq_key == "your-groq-api-key-here":
                 yield "Error: Groq API key not configured. Please create a .env file in the project root and set GROQ_API_KEY=your-actual-groq-key. You can get an API key from https://console.groq.com/"
                 return
-        elif llm_model == "OpenAI":
+        elif resolved_model == "OpenAI":
             openai_key = get_openai_api_key()
             if not openai_key or openai_key == "your-openai-api-key-here":
                 yield "Error: OpenAI API key not configured. Please create a .env file in the project root and set OPENAI_API_KEY=your-actual-openai-key. You can get an API key from https://platform.openai.com/api-keys"
                 return
-        elif llm_model == "Claude":
+        elif resolved_model == "Claude":
             anthropic_key = get_anthropic_api_key()
             if not anthropic_key or anthropic_key == "your-anthropic-api-key-here":
                 yield "Error: Anthropic API key not configured. Please create a .env file in the project root and set ANTHROPIC_API_KEY=your-actual-anthropic-key. You can get an API key from https://console.anthropic.com/"
                 return
-        elif llm_model == "Cohere":
+        elif resolved_model == "Cohere":
             cohere_key = get_cohere_api_key()
             if not cohere_key or cohere_key == "your-cohere-api-key-here":
                 yield "Error: Cohere API key not configured. Please create a .env file in the project root and set COHERE_API_KEY=your-actual-cohere-key. You can get an API key from https://cohere.com/"
@@ -61,7 +70,7 @@ async def stream_company_response(
 
         # Get company-specific RAG chain
         try:
-            rag_chain = await get_company_rag_chain(company_id, llm_model)
+            rag_chain = await get_company_rag_chain(company_id, resolved_model)
         except Exception as chain_error:
             error_msg = str(chain_error)
 
