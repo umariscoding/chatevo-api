@@ -445,7 +445,7 @@
         font-weight: 600;
         color: white;
         flex-shrink: 0;
-        margin-top: 2px;
+        align-self: flex-start;
       }
 
       .chatevo-message.user .chatevo-message-content {
@@ -825,8 +825,6 @@
 
         if (!response.ok) throw new Error('Failed');
 
-        hideTyping();
-
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
         let aiDiv = null;
@@ -847,7 +845,21 @@
                   chatId = data.chat_id;
                 } else if (data.type === 'chunk' && data.content) {
                   fullResponse += data.content;
-                  if (!aiDiv) aiDiv = addBotMessage('');
+                  if (!aiDiv) {
+                    // Replace typing indicator in-place to avoid any gap
+                    const typingEl = document.getElementById('chatevo-typing');
+                    if (typingEl) {
+                      let avatarHtml = '';
+                      if (botDisplayName) {
+                        avatarHtml = `<div class="chatevo-bot-avatar">${avatarInitial}</div>`;
+                      }
+                      typingEl.removeAttribute('id');
+                      typingEl.innerHTML = `${avatarHtml}<div class="chatevo-message-content"></div>`;
+                      aiDiv = typingEl;
+                    } else {
+                      aiDiv = addBotMessage('');
+                    }
+                  }
                   aiDiv.querySelector('.chatevo-message-content').innerHTML = escapeHtml(fullResponse) + '<span class="chatevo-cursor"></span>';
                   scrollToBottom();
                 } else if (data.type === 'end' && aiDiv) {
@@ -860,6 +872,9 @@
             }
           }
         }
+
+        // Safety: hide typing if no chunks arrived
+        hideTyping();
 
         messages.push({ role: 'user', content: message });
         messages.push({ role: 'assistant', content: fullResponse });
