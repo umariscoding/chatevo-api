@@ -122,7 +122,7 @@
     const isMinimal = chatTemplate === 'minimal';
 
     const modalRadius = isBubbles ? '24px' : isMinimal ? '8px' : '16px';
-    const headerRadius = isBubbles ? '24px 24px 0 0' : isMinimal ? '8px 8px 0 0' : '16px 16px 0 0';
+    // Header radius removed — modal overflow:hidden clips the corners
     const toggleRadius = isMinimal ? '12px' : '50%';
     const inputRadius = isBubbles ? '28px' : isMinimal ? '8px' : '24px';
     const modalShadow = isMinimal
@@ -282,7 +282,7 @@
         max-height: calc(100vh - 120px);
         background: ${colors.bg};
         border-radius: ${modalRadius};
-        border: 1px solid ${colors.border};
+        ${isMinimal ? `border: 1px solid ${colors.border};` : ''}
         box-shadow: ${modalShadow};
         display: flex;
         flex-direction: column;
@@ -320,7 +320,6 @@
         justify-content: space-between;
         flex-shrink: 0;
         background: ${headerBg};
-        border-radius: ${headerRadius};
         ${headerBorder}
       }
 
@@ -458,8 +457,52 @@
 
       .chatevo-message-content {
         font-size: 14px;
+        word-break: break-word;
+        line-height: 1.6;
+      }
+
+      .chatevo-message-content strong {
+        font-weight: 600;
+        color: ${colors.text};
+      }
+
+      .chatevo-message-content em {
+        font-style: italic;
+      }
+
+      .chatevo-message-content .ce-list {
+        margin: 4px 0;
+        padding: 0 0 0 20px;
+      }
+
+      .chatevo-message-content .ce-list li {
+        margin-bottom: 2px;
+        line-height: 1.5;
+      }
+
+      .chatevo-message-content .ce-code-block {
+        background: ${colors.bgInput};
+        padding: 10px 12px;
+        border-radius: 8px;
+        overflow-x: auto;
+        margin: 6px 0;
+        font-size: 13px;
+        line-height: 1.5;
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
         white-space: pre-wrap;
         word-break: break-word;
+      }
+
+      .chatevo-message-content .ce-inline-code {
+        background: ${colors.bgInput};
+        padding: 1px 5px;
+        border-radius: 4px;
+        font-size: 13px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+
+      .chatevo-message.user .chatevo-message-content {
+        white-space: pre-wrap;
       }
 
       .chatevo-welcome {
@@ -748,6 +791,45 @@
       return div.innerHTML;
     }
 
+    function renderMarkdown(text) {
+      let html = escapeHtml(text);
+
+      // Code blocks
+      html = html.replace(/```(\w*)\n?([\s\S]*?)```/g, (_m, _lang, code) =>
+        `<pre class="ce-code-block"><code>${code.trim()}</code></pre>`
+      );
+
+      // Inline code
+      html = html.replace(/`([^`]+)`/g, '<code class="ce-inline-code">$1</code>');
+
+      // Bold
+      html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+
+      // Italic (single * not adjacent to another *)
+      html = html.replace(/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/g, '<em>$1</em>');
+
+      // Headings — render as bold text, not actual <h> tags (keeps it subtle in chat)
+      html = html.replace(/^#{1,6}\s+(.+)$/gm, '<strong>$1</strong>');
+
+      // Unordered list items
+      html = html.replace(/^[*-]\s+(.+)$/gm, '<li>$1</li>');
+      html = html.replace(/((?:<li>.*?<\/li>\s*)+)/g, '<ul class="ce-list">$1</ul>');
+
+      // Ordered list items
+      html = html.replace(/^\d+\.\s+(.+)$/gm, '<li>$1</li>');
+      // Only wrap orphan <li> not already in <ul>
+      html = html.replace(/(?<!<\/ul>)\s*((?:<li>.*?<\/li>\s*)+)/g, '<ol class="ce-list">$1</ol>');
+
+      // Line breaks
+      html = html.replace(/\n/g, '<br>');
+
+      // Clean up <br> around block elements
+      html = html.replace(/<br>\s*(<\/?(?:ul|ol|li|pre))/g, '$1');
+      html = html.replace(/(<\/(?:ul|ol|pre)>)\s*<br>/g, '$1');
+
+      return html;
+    }
+
     function scrollToBottom() {
       messagesContainer.scrollTop = messagesContainer.scrollHeight;
     }
@@ -764,7 +846,7 @@
         avatarHtml = `<div class="chatevo-bot-avatar">${avatarInitial}</div>`;
       }
 
-      div.innerHTML = `${avatarHtml}<div class="chatevo-message-content">${escapeHtml(content)}</div>`;
+      div.innerHTML = `${avatarHtml}<div class="chatevo-message-content">${renderMarkdown(content)}</div>`;
       messagesContainer.appendChild(div);
       scrollToBottom();
       return div;
@@ -860,11 +942,12 @@
                       aiDiv = addBotMessage('');
                     }
                   }
-                  aiDiv.querySelector('.chatevo-message-content').innerHTML = escapeHtml(fullResponse) + '<span class="chatevo-cursor"></span>';
+                  aiDiv.querySelector('.chatevo-message-content').innerHTML = renderMarkdown(fullResponse) + '<span class="chatevo-cursor"></span>';
                   scrollToBottom();
                 } else if (data.type === 'end' && aiDiv) {
-                  const cursor = aiDiv.querySelector('.chatevo-cursor');
-                  if (cursor) cursor.remove();
+                  // Final render without cursor
+                  aiDiv.querySelector('.chatevo-message-content').innerHTML = renderMarkdown(fullResponse);
+
                 } else if (data.type === 'error') {
                   throw new Error(data.error);
                 }
