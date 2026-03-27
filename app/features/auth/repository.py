@@ -190,12 +190,12 @@ EMBED_DEFAULTS: Dict[str, Any] = {
     "welcomeText": "Hi there! How can we help you today?",
     "subtitleText": "We typically reply instantly",
     "placeholderText": "Type your message...",
-    "initialMessage": "",
+    "showHeaderSubtitle": True,
     "hideBranding": False,
     "autoOpenDelay": 0,
     "buttonIcon": "chat",
-    "botDisplayName": "",
     "chatTemplate": "default",
+    "suggestedMessages": [],
 }
 
 

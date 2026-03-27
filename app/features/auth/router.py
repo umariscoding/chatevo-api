@@ -139,12 +139,12 @@ async def update_embed_settings(
         welcomeText=data.welcomeText,
         subtitleText=data.subtitleText,
         placeholderText=data.placeholderText,
-        initialMessage=data.initialMessage,
+        showHeaderSubtitle=data.showHeaderSubtitle,
         hideBranding=data.hideBranding,
         autoOpenDelay=data.autoOpenDelay,
         buttonIcon=data.buttonIcon,
-        botDisplayName=data.botDisplayName,
         chatTemplate=data.chatTemplate,
+        suggestedMessages=data.suggestedMessages,
     )
 
 

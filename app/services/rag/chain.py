@@ -140,6 +140,7 @@ def _build_chain(llm, retriever, company_context: Dict[str, str]):
     # --- QA chain ---
     tone = company_context.get("tone", "professional")
     tone_block = _TONE_MAP.get(tone, _TONE_MAP["professional"])
+    logger.info("Building chain with tone=%s for company context: %s", tone, company_context.get("company_name"))
     custom_prompt = company_context.get("custom_system_prompt", "")
     if custom_prompt:
         custom_prompt = custom_prompt.replace("{", "{{").replace("}", "}}")

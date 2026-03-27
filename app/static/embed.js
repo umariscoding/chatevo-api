@@ -20,12 +20,12 @@
     subtitleText: scriptTag?.getAttribute('data-subtitle-text') || 'We typically reply instantly',
     headerColor: '',
     placeholderText: 'Type your message...',
-    initialMessage: '',
+    showHeaderSubtitle: true,
     hideBranding: false,
     autoOpenDelay: 0,
     buttonIcon: 'chat',
-    botDisplayName: '',
     chatTemplate: 'default',
+    suggestedMessages: [],
   };
 
   // Fetch settings from backend, then initialize widget
@@ -41,16 +41,16 @@
           config.theme = s.theme || config.theme;
           config.position = (s.position === 'left' ? 'bottom-left' : 'bottom-right');
           config.primaryColor = s.primaryColor || config.primaryColor;
-          config.welcomeText = s.welcomeText || config.welcomeText;
-          config.subtitleText = s.subtitleText || config.subtitleText;
+          config.welcomeText = s.welcomeText ?? config.welcomeText;
+          config.subtitleText = s.subtitleText ?? config.subtitleText;
           config.placeholderText = s.placeholderText || config.placeholderText;
-          config.initialMessage = s.initialMessage ?? config.initialMessage;
+          config.showHeaderSubtitle = s.showHeaderSubtitle ?? config.showHeaderSubtitle;
           config.hideBranding = s.hideBranding ?? config.hideBranding;
           config.autoOpenDelay = s.autoOpenDelay ?? config.autoOpenDelay;
           config.buttonIcon = s.buttonIcon || config.buttonIcon;
           config.headerColor = s.headerColor ?? config.headerColor;
-          config.botDisplayName = s.botDisplayName ?? config.botDisplayName;
           config.chatTemplate = s.chatTemplate || config.chatTemplate;
+          config.suggestedMessages = Array.isArray(s.suggestedMessages) ? s.suggestedMessages.filter(Boolean) : config.suggestedMessages;
         }
       }
     } catch (e) {
@@ -63,8 +63,8 @@
   function initWidget(config) {
     const {
       position, primaryColor, headerColor, theme, welcomeText, subtitleText,
-      placeholderText, initialMessage, hideBranding, autoOpenDelay,
-      buttonIcon, botDisplayName, chatTemplate
+      placeholderText, showHeaderSubtitle, hideBranding, autoOpenDelay,
+      buttonIcon, chatTemplate, suggestedMessages
     } = config;
 
     const resolvedHeaderColor = headerColor || primaryColor;
@@ -75,7 +75,6 @@
     let messages = [];
     let isLoading = false;
     let companyInfo = null;
-    let hasShownInitialMessage = false;
 
     // Theme colors
     const darkColors = {
@@ -215,8 +214,6 @@
     }
 
     const msgSpacing = isBubbles ? '10px' : isMinimal ? '6px' : '8px';
-    const botAvatarSize = isBubbles ? '32px' : '28px';
-    const botAvatarFontSize = isBubbles ? '14px' : '13px';
 
     // CSS Styles with theme + template support
     const styles = `
@@ -341,35 +338,6 @@
         margin-top: ${isMinimal ? '1px' : '2px'};
       }
 
-      .chatevo-header-avatar {
-        width: 36px;
-        height: 36px;
-        border-radius: 50%;
-        background: rgba(255,255,255,0.2);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 15px;
-        font-weight: 600;
-        color: white;
-        flex-shrink: 0;
-      }
-
-      .chatevo-header-avatar-minimal {
-        width: 28px;
-        height: 28px;
-        border-radius: 6px;
-        background: ${primaryColor};
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 12px;
-        font-weight: 600;
-        color: white;
-        flex-shrink: 0;
-        margin-right: 10px;
-      }
-
       .chatevo-close-btn {
         width: ${closeBtnSize};
         height: ${closeBtnSize};
@@ -432,21 +400,6 @@
         gap: 8px;
       }
 
-      .chatevo-bot-avatar {
-        width: ${botAvatarSize};
-        height: ${botAvatarSize};
-        border-radius: 50%;
-        background: ${primaryColor};
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: ${botAvatarFontSize};
-        font-weight: 600;
-        color: white;
-        flex-shrink: 0;
-        align-self: flex-start;
-      }
-
       .chatevo-message.user .chatevo-message-content {
         ${userMsgStyles}
       }
@@ -506,13 +459,18 @@
       }
 
       .chatevo-welcome {
-        flex: 1;
         display: flex;
         flex-direction: column;
-        align-items: ${isMinimal ? 'flex-start' : 'center'};
-        justify-content: center;
-        text-align: ${isMinimal ? 'left' : 'center'};
+        align-items: flex-start;
+        text-align: left;
         padding: ${isBubbles ? '24px' : '20px'};
+      }
+
+      .chatevo-welcome-centered {
+        flex: 1;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
       }
 
       .chatevo-welcome h4 {
@@ -522,23 +480,9 @@
         margin-bottom: 4px;
       }
 
-      .chatevo-welcome p {
+      .chatevo-welcome-sub {
         font-size: ${isMinimal ? '12px' : '13px'};
         color: ${colors.textMuted};
-      }
-
-      .chatevo-welcome-avatar {
-        width: 48px;
-        height: 48px;
-        border-radius: 50%;
-        background: ${primaryColor};
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 20px;
-        font-weight: 600;
-        color: white;
-        margin-bottom: 12px;
       }
 
       .chatevo-typing {
@@ -561,6 +505,34 @@
       @keyframes chatevo-bounce {
         0%, 80%, 100% { opacity: 0.4; }
         40% { opacity: 1; }
+      }
+
+      .chatevo-suggested {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+        padding-top: 12px;
+      }
+
+      .chatevo-suggested-btn {
+        padding: 8px 14px;
+        font-size: 13px;
+        border-radius: 10px;
+        border: 1.5px solid ${theme === 'light' ? '#d4d4d8' : '#3f3f46'};
+        background: transparent;
+        color: ${colors.text};
+        cursor: pointer;
+        text-align: left;
+        transition: all 0.15s;
+        font-family: inherit;
+        line-height: 1.4;
+      }
+
+      .chatevo-suggested-btn:hover {
+        border-color: ${primaryColor};
+        color: ${primaryColor};
+        background: ${theme === 'light' ? 'rgba(0,0,0,0.02)' : 'rgba(255,255,255,0.03)'};
       }
 
       .chatevo-input-area {
@@ -673,25 +645,6 @@
       ? ''
       : `<div class="chatevo-powered">Powered by <a href="https://chatevo.com" target="_blank">ChatEvo</a></div>`;
 
-    // Get bot avatar initial
-    const avatarInitial = botDisplayName ? botDisplayName.charAt(0).toUpperCase() : '';
-
-    // Build header avatar based on template
-    let headerAvatarHtml = '';
-    if (botDisplayName) {
-      if (isBubbles) {
-        headerAvatarHtml = `<div class="chatevo-header-avatar">${avatarInitial}</div>`;
-      } else if (isMinimal) {
-        headerAvatarHtml = `<div class="chatevo-header-avatar-minimal">${avatarInitial}</div>`;
-      }
-    }
-
-    // Build welcome avatar for bubbles template
-    let welcomeAvatarHtml = '';
-    if (isBubbles && botDisplayName) {
-      welcomeAvatarHtml = `<div class="chatevo-welcome-avatar">${avatarInitial}</div>`;
-    }
-
     // Create widget
     const container = document.createElement('div');
     container.className = 'chatevo-widget-container';
@@ -703,10 +656,9 @@
       <div class="chatevo-modal">
         <div class="chatevo-header">
           <div class="chatevo-header-text">
-            ${headerAvatarHtml}
             <div>
               <h3 class="chatevo-title">Chat Assistant</h3>
-              <p class="chatevo-subtitle">${subtitleText}</p>
+              ${showHeaderSubtitle && subtitleText ? `<p class="chatevo-subtitle">${subtitleText}</p>` : ''}
             </div>
           </div>
           <button class="chatevo-close-btn" aria-label="Close">
@@ -714,10 +666,12 @@
           </button>
         </div>
         <div class="chatevo-messages">
-          <div class="chatevo-welcome">
-            ${welcomeAvatarHtml}
-            <h4 class="chatevo-welcome-text">${welcomeText}</h4>
-            <p>Ask us anything</p>
+          ${(welcomeText || subtitleText) ? `<div class="chatevo-welcome ${suggestedMessages.length ? '' : 'chatevo-welcome-centered'}">
+            ${welcomeText ? `<h4 class="chatevo-welcome-text">${welcomeText}</h4>` : ''}
+            ${subtitleText ? `<p class="chatevo-welcome-sub">${subtitleText}</p>` : ''}
+          </div>` : ''}
+          <div class="chatevo-suggested" style="${suggestedMessages.length ? '' : 'display:none'}">
+            ${suggestedMessages.map(msg => `<button class="chatevo-suggested-btn">${escapeHtml(msg)}</button>`).join('')}
           </div>
         </div>
         <div class="chatevo-input-area">
@@ -765,13 +719,6 @@
       setTimeout(() => input.focus(), 100);
       if (!companyInfo) fetchCompanyInfo();
 
-      // Show initial message on first open
-      if (!hasShownInitialMessage && initialMessage) {
-        hasShownInitialMessage = true;
-        const welcome = messagesContainer.querySelector('.chatevo-welcome');
-        if (welcome) welcome.remove();
-        addBotMessage(initialMessage);
-      }
     }
 
     function closeChat() {
@@ -841,12 +788,7 @@
       const div = document.createElement('div');
       div.className = 'chatevo-message bot-msg';
 
-      let avatarHtml = '';
-      if (botDisplayName) {
-        avatarHtml = `<div class="chatevo-bot-avatar">${avatarInitial}</div>`;
-      }
-
-      div.innerHTML = `${avatarHtml}<div class="chatevo-message-content">${renderMarkdown(content)}</div>`;
+      div.innerHTML = `<div class="chatevo-message-content">${renderMarkdown(content)}</div>`;
       messagesContainer.appendChild(div);
       scrollToBottom();
       return div;
@@ -871,12 +813,7 @@
       div.className = 'chatevo-message bot-msg';
       div.id = 'chatevo-typing';
 
-      let avatarHtml = '';
-      if (botDisplayName) {
-        avatarHtml = `<div class="chatevo-bot-avatar">${avatarInitial}</div>`;
-      }
-
-      div.innerHTML = `${avatarHtml}<div class="chatevo-typing"><div class="chatevo-typing-dot"></div><div class="chatevo-typing-dot"></div><div class="chatevo-typing-dot"></div></div>`;
+      div.innerHTML = `<div class="chatevo-typing"><div class="chatevo-typing-dot"></div><div class="chatevo-typing-dot"></div><div class="chatevo-typing-dot"></div></div>`;
       messagesContainer.appendChild(div);
       scrollToBottom();
     }
@@ -894,6 +831,7 @@
       input.value = '';
       input.style.height = 'auto';
       sendBtn.disabled = true;
+      hideSuggested();
 
       addMessage(message, true);
       showTyping();
@@ -931,12 +869,8 @@
                     // Replace typing indicator in-place to avoid any gap
                     const typingEl = document.getElementById('chatevo-typing');
                     if (typingEl) {
-                      let avatarHtml = '';
-                      if (botDisplayName) {
-                        avatarHtml = `<div class="chatevo-bot-avatar">${avatarInitial}</div>`;
-                      }
                       typingEl.removeAttribute('id');
-                      typingEl.innerHTML = `${avatarHtml}<div class="chatevo-message-content"></div>`;
+                      typingEl.innerHTML = `<div class="chatevo-message-content"></div>`;
                       aiDiv = typingEl;
                     } else {
                       aiDiv = addBotMessage('');
@@ -979,6 +913,20 @@
       input.style.height = 'auto';
       input.style.height = Math.min(input.scrollHeight, 100) + 'px';
     }
+
+    // Suggested messages
+    const suggestedContainer = container.querySelector('.chatevo-suggested');
+    function hideSuggested() {
+      if (suggestedContainer) suggestedContainer.style.display = 'none';
+    }
+
+    container.querySelectorAll('.chatevo-suggested-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        input.value = btn.textContent;
+        hideSuggested();
+        sendMessage();
+      });
+    });
 
     // Events
     toggleBtn.addEventListener('click', toggleChat);

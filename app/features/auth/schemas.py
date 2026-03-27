@@ -54,12 +54,12 @@ class EmbedSettingsRequest(BaseModel):
     welcomeText: Optional[str] = Field("Hi there! How can we help you today?", max_length=500)
     subtitleText: Optional[str] = Field("We typically reply instantly", max_length=500)
     placeholderText: Optional[str] = Field("Type your message...", max_length=200)
-    initialMessage: Optional[str] = Field("", max_length=1000)
+    showHeaderSubtitle: Optional[bool] = True
     hideBranding: Optional[bool] = False
     autoOpenDelay: Optional[int] = Field(0, ge=0, le=60)
     buttonIcon: Optional[str] = Field("chat", max_length=50)
-    botDisplayName: Optional[str] = Field("", max_length=100)
     chatTemplate: Optional[str] = Field("default", max_length=50)
+    suggestedMessages: Optional[List[str]] = Field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------
