@@ -19,6 +19,9 @@ class Settings(BaseSettings):
     pinecone_api_key: str
     cohere_api_key: str
 
+    # --- Google OAuth ---
+    google_client_id: Optional[str] = None
+
     # --- LLM provider keys (at least one should be set) ---
     groq_api_key: Optional[str] = None
     openai_api_key: Optional[str] = None

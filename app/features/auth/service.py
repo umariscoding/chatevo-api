@@ -4,7 +4,11 @@ No HTTP concepts (no Request, no HTTPException). Raises domain exceptions.
 """
 
 import re
+import secrets
 from typing import Dict, Any
+
+from google.oauth2 import id_token as google_id_token
+from google.auth.transport import requests as google_requests
 
 from app.core.security import (
     create_company_tokens,
@@ -18,11 +22,12 @@ from app.core.exceptions import (
     ValidationError,
     InternalError,
 )
-from app.core.config import get_chatbot_url
+from app.core.config import get_chatbot_url, settings as app_settings
 from app.features.auth.repository import (
     create_company,
     authenticate_company,
     get_company_by_id,
+    get_company_by_email,
     update_company_slug as db_update_company_slug,
     publish_chatbot as db_publish_chatbot,
     update_chatbot_info as db_update_chatbot_info,
@@ -42,6 +47,39 @@ VALID_TONES = ["professional", "friendly", "casual", "formal", "witty"]
 def register_company(name: str, email: str, password: str) -> Dict[str, Any]:
     hashed_password = get_password_hash(password)
     company = create_company(name=name, email=email, password=hashed_password)
+    tokens = create_company_tokens(company_id=company["company_id"], email=company["email"])
+    return {"message": "Company registered successfully", "company": company, "tokens": tokens}
+
+
+def google_auth_company(credential: str) -> Dict[str, Any]:
+    """Verify Google ID token and sign in or register the company."""
+    if not app_settings.google_client_id:
+        raise ValidationError("Google authentication is not configured")
+
+    try:
+        id_info = google_id_token.verify_oauth2_token(
+            credential,
+            google_requests.Request(),
+            app_settings.google_client_id,
+        )
+    except ValueError:
+        raise AuthenticationError("Invalid Google credential")
+
+    email = id_info.get("email")
+    if not email or not id_info.get("email_verified"):
+        raise AuthenticationError("Google account email is not verified")
+
+    name = id_info.get("name") or email.split("@")[0]
+
+    # Existing company → login; otherwise → register
+    company = get_company_by_email(email)
+    if company:
+        tokens = create_company_tokens(company_id=company["company_id"], email=company["email"])
+        return {"message": "Login successful", "company": company, "tokens": tokens}
+
+    # Generate an unusable password hash for Google-only accounts
+    random_password = get_password_hash(secrets.token_hex(32))
+    company = create_company(name=name, email=email, password=random_password)
     tokens = create_company_tokens(company_id=company["company_id"], email=company["email"])
     return {"message": "Company registered successfully", "company": company, "tokens": tokens}
 

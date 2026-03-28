@@ -11,6 +11,7 @@ from app.features.auth import service
 from app.features.auth.schemas import (
     CompanyRegisterRequest,
     CompanyLoginRequest,
+    GoogleAuthRequest,
     RefreshTokenRequest,
     CompanySlugRequest,
     PublishChatbotRequest,
@@ -31,6 +32,11 @@ def register_company(data: CompanyRegisterRequest) -> Dict[str, Any]:
 @router.post("/company/login")
 def login_company(data: CompanyLoginRequest) -> Dict[str, Any]:
     return service.login_company(data.email, data.password)
+
+
+@router.post("/company/google")
+def google_auth_company(data: GoogleAuthRequest) -> Dict[str, Any]:
+    return service.google_auth_company(data.credential)
 
 
 @router.get("/company/profile")

@@ -54,6 +54,11 @@ def get_company_by_id(company_id: str) -> Optional[Dict[str, Any]]:
     return res.data[0] if res.data else None
 
 
+def get_company_by_email(email: str) -> Optional[Dict[str, Any]]:
+    res = db.table("companies").select("*").eq("email", email).execute()
+    return res.data[0] if res.data else None
+
+
 def get_company_by_slug(slug: str) -> Optional[Dict[str, Any]]:
     res = db.table("companies").select("*").eq("slug", slug).execute()
     return res.data[0] if res.data else None

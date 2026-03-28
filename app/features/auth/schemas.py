@@ -19,6 +19,10 @@ class CompanyLoginRequest(BaseModel):
     password: str = Field(..., min_length=1, max_length=128)
 
 
+class GoogleAuthRequest(BaseModel):
+    credential: str = Field(..., min_length=1)
+
+
 class RefreshTokenRequest(BaseModel):
     refresh_token: str
 
