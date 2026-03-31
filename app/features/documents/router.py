@@ -7,6 +7,7 @@ Mounted at /chat (backward-compatible) with original path structure preserved.
 from fastapi import APIRouter, Depends, UploadFile, File
 
 from app.features.auth.dependencies import get_current_company, UserContext
+from app.features.billing.dependencies import require_pro_plan
 from app.features.documents import service
 from app.features.documents.schemas import (
     DocumentUploadRequest,
@@ -20,7 +21,7 @@ router = APIRouter(prefix="/chat", tags=["documents"])
 @router.post("/upload-document")
 async def upload_document(
     file: UploadFile = File(...),
-    user: UserContext = Depends(get_current_company),
+    user: UserContext = Depends(require_pro_plan),
 ):
     file_content = await file.read()
     return await service.upload_document(

@@ -23,6 +23,7 @@ from app.features.chat.router import router as chat_router
 from app.features.documents.router import router as documents_router
 from app.features.public.router import router as public_router
 from app.features.analytics.router import router as analytics_router
+from app.features.billing.router import router as billing_router
 
 # ---------------------------------------------------------------------------
 # App
@@ -104,6 +105,7 @@ app.include_router(chat_router)
 app.include_router(documents_router)
 app.include_router(public_router)
 app.include_router(analytics_router)
+app.include_router(billing_router)
 
 # ---------------------------------------------------------------------------
 # Static / widget endpoints

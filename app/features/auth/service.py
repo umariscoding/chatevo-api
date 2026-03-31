@@ -19,6 +19,7 @@ from app.core.security import (
 from app.core.exceptions import (
     NotFoundError,
     AuthenticationError,
+    AuthorizationError,
     ValidationError,
     InternalError,
 )
@@ -180,6 +181,12 @@ def get_chatbot_status(company_id: str) -> Dict[str, Any]:
     if not company:
         raise NotFoundError("Company not found")
     settings_col = company.get("settings") or {}
+    user_portal_setting = settings_col.get("enable_user_portal", True)
+
+    # Free users cannot have user portal — force off regardless of setting
+    from app.features.billing.service import is_plan_active
+    enable_user_portal = user_portal_setting and is_plan_active(company)
+
     return {
         "company_id": company["company_id"],
         "slug": company.get("slug"),
@@ -187,7 +194,7 @@ def get_chatbot_status(company_id: str) -> Dict[str, Any]:
         "published_at": company.get("published_at"),
         "chatbot_title": company.get("chatbot_title"),
         "chatbot_description": company.get("chatbot_description"),
-        "enable_user_portal": settings_col.get("enable_user_portal", True),
+        "enable_user_portal": enable_user_portal,
         "public_url": (
             get_chatbot_url(company["slug"])
             if company.get("slug") and company.get("is_published")
@@ -229,10 +236,13 @@ def batch_update_settings(company_id: str, **kwargs) -> Dict[str, Any]:
         if len(slug) < 3 or len(slug) > 50:
             raise ValidationError("Slug must be between 3 and 50 characters long")
 
+    # Fetch company once — needed for publish checks and plan gating
+    from app.features.billing.service import is_plan_active
+    company = get_company_by_id(company_id)
+    if not company:
+        raise NotFoundError("Company not found")
+
     if is_published:
-        company = get_company_by_id(company_id)
-        if not company:
-            raise NotFoundError("Company not found")
         if slug is None and not company.get("slug"):
             raise ValidationError("Company must have a slug before publishing")
 
@@ -241,6 +251,17 @@ def batch_update_settings(company_id: str, **kwargs) -> Dict[str, Any]:
 
     if tone is not None and tone not in VALID_TONES:
         raise ValidationError(f"Invalid tone. Must be one of: {', '.join(VALID_TONES)}")
+
+    # Plan gating: free users cannot change model, tone, system prompt, or user portal
+    if not is_plan_active(company):
+        if default_model is not None:
+            raise AuthorizationError("Changing the AI model requires a Pro plan.")
+        if tone is not None:
+            raise AuthorizationError("Changing the tone requires a Pro plan.")
+        if kwargs.get("system_prompt") is not None:
+            raise AuthorizationError("Custom instructions require a Pro plan.")
+        if enable_user_portal is not None:
+            raise AuthorizationError("The user portal requires a Pro plan.")
 
     updated_company = db_batch_update_settings(company_id=company_id, **kwargs)
     if not updated_company:
@@ -262,7 +283,18 @@ def get_embed_settings(company_id: str) -> Dict[str, Any]:
     return {"settings": settings}
 
 
+_FREE_EMBED_FIELDS = {"buttonIcon", "autoOpenDelay", "hideBranding"}
+
+
 def update_embed_settings(company_id: str, **kwargs) -> Dict[str, Any]:
+    from app.features.billing.service import is_plan_active
+    company = get_company_by_id(company_id)
+    if company and not is_plan_active(company):
+        # Free users can only update behavior/launcher fields
+        pro_fields = {k for k, v in kwargs.items() if v is not None and k not in _FREE_EMBED_FIELDS}
+        if pro_fields:
+            raise AuthorizationError("Customizing embed appearance requires a Pro plan.")
+
     updated_settings = db_update_embed_settings(company_id=company_id, **kwargs)
     if updated_settings is None:
         raise NotFoundError("Company not found")

@@ -10,8 +10,24 @@ from typing import Dict, Any
 from app.core.exceptions import NotFoundError
 from app.services.rag import stream_company_response
 from app.features.auth.repository import get_published_company_info, get_company_by_slug, get_embed_settings_by_slug
+from app.features.billing.service import is_plan_active
 from app.features.users.repository import create_guest_session
 from app.features.chat.repository import create_chat, get_chat_by_id, save_message
+
+
+def _apply_plan_gating(company: Dict[str, Any]) -> Dict[str, Any]:
+    """Enforce plan-based feature gating on public company info.
+
+    Free users cannot have the user portal enabled.
+    Billing fields are stripped from the public response.
+    """
+    if not is_plan_active(company):
+        company["enable_user_portal"] = False
+
+    company.pop("plan", None)
+    company.pop("ls_subscription_status", None)
+    company.pop("subscription_ends_at", None)
+    return company
 
 
 def get_chatbot_info_by_subdomain(subdomain: str, is_subdomain_request: bool) -> Dict[str, Any]:
@@ -20,7 +36,7 @@ def get_chatbot_info_by_subdomain(subdomain: str, is_subdomain_request: bool) ->
     company = get_published_company_info(subdomain)
     if not company:
         raise NotFoundError("Chatbot not found or not published")
-    return company
+    return _apply_plan_gating(company)
 
 
 def get_subdomain_company_info(subdomain: str, is_subdomain_request: bool) -> Dict[str, Any]:
@@ -96,7 +112,7 @@ def get_chatbot_info_by_slug(company_slug: str) -> Dict[str, Any]:
     company = get_published_company_info(company_slug)
     if not company:
         raise NotFoundError("Chatbot not found or not published")
-    return company
+    return _apply_plan_gating(company)
 
 
 def get_embed_settings(company_slug: str) -> Dict[str, Any]:

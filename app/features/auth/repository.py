@@ -72,7 +72,7 @@ def get_company_by_api_key(api_key: str) -> Optional[Dict[str, Any]]:
 def get_published_company_info(slug: str) -> Optional[Dict[str, Any]]:
     res = (
         db.table("companies")
-        .select("company_id, name, slug, chatbot_title, chatbot_description, published_at, settings")
+        .select("company_id, name, slug, chatbot_title, chatbot_description, published_at, settings, plan, ls_subscription_status, subscription_ends_at")
         .eq("slug", slug)
         .eq("is_published", True)
         .execute()
@@ -89,6 +89,8 @@ def get_published_company_info(slug: str) -> Optional[Dict[str, Any]]:
     # Extract enable_user_portal from settings JSON, default True for backward compat
     settings_col = company.pop("settings", None) or {}
     company["enable_user_portal"] = settings_col.get("enable_user_portal", True)
+
+    # Return billing fields so the service layer can evaluate plan status
     return company
 
 

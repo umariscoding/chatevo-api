@@ -50,6 +50,13 @@ class Settings(BaseSettings):
     chatbot_protocol: str = "https"
     use_subdomain_routing: bool = True
 
+    # --- LemonSqueezy ---
+    lemonsqueezy_api_key: Optional[str] = None
+    lemonsqueezy_webhook_secret: Optional[str] = None
+    lemonsqueezy_store_id: Optional[str] = None
+    lemonsqueezy_variant_id: Optional[str] = None
+    admin_dashboard_url: str = "http://localhost:3000"
+
     # --- Dev ---
     debug: bool = False
     log_level: str = "INFO"
