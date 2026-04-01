@@ -283,7 +283,7 @@ def get_embed_settings(company_id: str) -> Dict[str, Any]:
     return {"settings": settings}
 
 
-_FREE_EMBED_FIELDS = {"buttonIcon", "autoOpenDelay", "hideBranding"}
+_FREE_EMBED_FIELDS = {"autoOpenDelay"}
 
 
 def update_embed_settings(company_id: str, **kwargs) -> Dict[str, Any]:

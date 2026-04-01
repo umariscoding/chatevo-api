@@ -5,6 +5,7 @@ Analytics router — thin HTTP layer for analytics endpoints.
 from fastapi import APIRouter, Depends
 
 from app.features.auth.dependencies import get_current_company, UserContext
+from app.features.billing.dependencies import require_pro_plan
 from app.features.analytics import service
 from app.features.analytics.schemas import AnalyticsDashboard, CompanyUsersResponse
 
@@ -22,6 +23,6 @@ def get_dashboard_analytics(
 def get_company_users_with_stats(
     page: int = 1,
     page_size: int = 20,
-    user: UserContext = Depends(get_current_company),
+    user: UserContext = Depends(require_pro_plan),
 ) -> CompanyUsersResponse:
     return service.get_company_users_with_stats(user.company_id, page=page, page_size=page_size)
