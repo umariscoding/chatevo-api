@@ -1,5 +1,5 @@
 """
-BotBeetle API — application entry point.
+Wispoke API — application entry point.
 
 Creates the FastAPI app, registers middleware, exception handlers, and routers.
 """
@@ -30,7 +30,7 @@ from app.features.billing.router import router as billing_router
 # ---------------------------------------------------------------------------
 
 app = FastAPI(
-    title="BotBeetle API",
+    title="Wispoke API",
     description="Multi-tenant chatbot platform with RAG-powered responses",
     version="2.0.0",
     docs_url="/docs",
@@ -57,7 +57,7 @@ logging.basicConfig(
     format="%(asctime)s | %(levelname)-8s | %(name)s | %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
 )
-logger = logging.getLogger("botbeetle")
+logger = logging.getLogger("wispoke")
 
 # ---------------------------------------------------------------------------
 # Middleware (order matters — outermost first)
@@ -151,7 +151,7 @@ if os.path.exists(STATIC_DIR):
 @app.get("/")
 async def root():
     return {
-        "message": "BotBeetle Multi-Tenant Chatbot API",
+        "message": "Wispoke Multi-Tenant Chatbot API",
         "status": "healthy",
         "version": "2.0.0",
         "docs": "/docs",
@@ -172,5 +172,5 @@ main = app
 if __name__ == "__main__":
     import uvicorn
 
-    logger.info("Starting BotBeetle API")
+    logger.info("Starting Wispoke API")
     uvicorn.run("app.main:app", port=8081, reload=True)

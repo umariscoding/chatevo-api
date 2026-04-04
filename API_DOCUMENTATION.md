@@ -1,4 +1,4 @@
-# Chatelio Multi-Tenant API Documentation
+# Wispoke Multi-Tenant API Documentation
 
 ## Overview
 This API provides a comprehensive multi-tenant chatbot platform with company-based data isolation, user management, and AI-powered chat functionality. Each company has its own knowledge base, users, and data that are completely isolated from other companies.

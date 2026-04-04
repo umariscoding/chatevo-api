@@ -1,5 +1,5 @@
 """
-Shared test fixtures for the BotBeetle API test suite.
+Shared test fixtures for the Wispoke API test suite.
 """
 
 import os

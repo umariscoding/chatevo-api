@@ -13,7 +13,7 @@ from app.features.auth.dependencies import get_current_company, UserContext
 from app.features.billing import service
 from app.features.billing.schemas import CheckoutResponse, SubscriptionStatusResponse
 
-logger = logging.getLogger("botbeetle.billing")
+logger = logging.getLogger("wispoke.billing")
 
 router = APIRouter(prefix="/billing", tags=["billing"])
 

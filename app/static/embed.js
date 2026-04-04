@@ -7,7 +7,7 @@
   const apiUrl = scriptTag?.getAttribute('data-api-url') || 'http://localhost:8000';
 
   if (!companySlug) {
-    console.error('BotBeetle Widget: Missing data-company-slug attribute');
+    console.error('Wispoke Widget: Missing data-company-slug attribute');
     return;
   }
 
@@ -220,14 +220,14 @@
 
     // CSS Styles with theme + template support
     const styles = `
-      .botbeetle-widget-container * {
+      .wispoke-widget-container * {
         box-sizing: border-box;
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         margin: 0;
         padding: 0;
       }
 
-      .botbeetle-toggle-btn {
+      .wispoke-toggle-btn {
         position: fixed;
         ${position === 'bottom-left' ? 'left: 20px;' : 'right: 20px;'}
         bottom: 20px;
@@ -245,38 +245,38 @@
         z-index: 999998;
       }
 
-      .botbeetle-toggle-btn:hover {
+      .wispoke-toggle-btn:hover {
         transform: scale(1.05);
       }
 
-      .botbeetle-toggle-btn svg {
+      .wispoke-toggle-btn svg {
         width: 24px;
         height: 24px;
         color: white;
         transition: opacity 0.3s ease, transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
       }
 
-      .botbeetle-toggle-btn svg.chat-icon {
+      .wispoke-toggle-btn svg.chat-icon {
         transform: scale(1) rotate(0deg);
       }
 
-      .botbeetle-toggle-btn.open svg.chat-icon {
+      .wispoke-toggle-btn.open svg.chat-icon {
         opacity: 0;
         transform: scale(0) rotate(90deg);
       }
 
-      .botbeetle-toggle-btn svg.close-icon {
+      .wispoke-toggle-btn svg.close-icon {
         position: absolute;
         opacity: 0;
         transform: scale(0) rotate(-90deg);
       }
 
-      .botbeetle-toggle-btn.open svg.close-icon {
+      .wispoke-toggle-btn.open svg.close-icon {
         opacity: 1;
         transform: scale(1) rotate(0deg);
       }
 
-      .botbeetle-modal {
+      .wispoke-modal {
         position: fixed;
         ${position === 'bottom-left' ? 'left: 20px;' : 'right: 20px;'}
         bottom: 88px;
@@ -298,14 +298,14 @@
         transition: all 0.2s ease;
       }
 
-      .botbeetle-modal.open {
+      .wispoke-modal.open {
         transform: translateY(0);
         opacity: 1;
         visibility: visible;
       }
 
       @media (max-width: 480px) {
-        .botbeetle-modal {
+        .wispoke-modal {
           left: 8px;
           right: 8px;
           bottom: 8px;
@@ -317,7 +317,7 @@
         }
       }
 
-      .botbeetle-header {
+      .wispoke-header {
         padding: ${headerPadding};
         display: flex;
         align-items: center;
@@ -327,25 +327,25 @@
         ${headerBorder}
       }
 
-      .botbeetle-header-text {
+      .wispoke-header-text {
         display: flex;
         align-items: center;
         gap: ${isBubbles ? '12px' : '0'};
       }
 
-      .botbeetle-header-text h3 {
+      .wispoke-header-text h3 {
         font-size: ${headerTitleSize};
         font-weight: ${headerTitleWeight};
         color: ${headerTitleColor};
       }
 
-      .botbeetle-header-text p {
+      .wispoke-header-text p {
         font-size: ${headerSubtitleSize};
         color: ${headerSubtitleColor};
         margin-top: ${isMinimal ? '1px' : '2px'};
       }
 
-      .botbeetle-close-btn {
+      .wispoke-close-btn {
         width: ${closeBtnSize};
         height: ${closeBtnSize};
         border-radius: ${closeBtnRadius};
@@ -359,17 +359,17 @@
         transition: all 0.15s;
       }
 
-      .botbeetle-close-btn:hover {
+      .wispoke-close-btn:hover {
         background: ${closeBtnHoverBg};
         color: ${closeBtnHoverColor};
       }
 
-      .botbeetle-close-btn svg {
+      .wispoke-close-btn svg {
         width: ${closeBtnIconSize};
         height: ${closeBtnIconSize};
       }
 
-      .botbeetle-messages {
+      .wispoke-messages {
         flex: 1;
         overflow-y: auto;
         padding: ${msgAreaPad};
@@ -377,70 +377,70 @@
         flex-direction: column;
       }
 
-      .botbeetle-messages::-webkit-scrollbar {
+      .wispoke-messages::-webkit-scrollbar {
         width: 4px;
       }
 
-      .botbeetle-messages::-webkit-scrollbar-thumb {
+      .wispoke-messages::-webkit-scrollbar-thumb {
         background: ${colors.scrollbar};
         border-radius: 4px;
       }
 
-      .botbeetle-message {
+      .wispoke-message {
         max-width: 85%;
         margin-bottom: ${msgSpacing};
-        animation: botbeetle-fadeIn 0.2s ease;
+        animation: wispoke-fadeIn 0.2s ease;
       }
 
-      @keyframes botbeetle-fadeIn {
+      @keyframes wispoke-fadeIn {
         from { opacity: 0; transform: translateY(4px); }
         to { opacity: 1; transform: translateY(0); }
       }
 
-      .botbeetle-message.user {
+      .wispoke-message.user {
         align-self: flex-end;
       }
 
-      .botbeetle-message.bot-msg {
+      .wispoke-message.bot-msg {
         display: flex;
         align-items: ${isBubbles ? 'flex-end' : 'flex-start'};
         gap: 8px;
       }
 
-      .botbeetle-message.user .botbeetle-message-content {
+      .wispoke-message.user .wispoke-message-content {
         ${userMsgStyles}
       }
 
-      .botbeetle-message:not(.user) .botbeetle-message-content {
+      .wispoke-message:not(.user) .wispoke-message-content {
         ${botMsgContentStyles}
       }
 
-      .botbeetle-message-content {
+      .wispoke-message-content {
         font-size: 14px;
         word-break: break-word;
         line-height: 1.6;
       }
 
-      .botbeetle-message-content strong {
+      .wispoke-message-content strong {
         font-weight: 600;
         color: ${colors.text};
       }
 
-      .botbeetle-message-content em {
+      .wispoke-message-content em {
         font-style: italic;
       }
 
-      .botbeetle-message-content .ce-list {
+      .wispoke-message-content .ce-list {
         margin: 4px 0;
         padding: 0 0 0 20px;
       }
 
-      .botbeetle-message-content .ce-list li {
+      .wispoke-message-content .ce-list li {
         margin-bottom: 2px;
         line-height: 1.5;
       }
 
-      .botbeetle-message-content .ce-code-block {
+      .wispoke-message-content .ce-code-block {
         background: ${colors.bgInput};
         padding: 10px 12px;
         border-radius: 8px;
@@ -453,7 +453,7 @@
         word-break: break-word;
       }
 
-      .botbeetle-message-content .ce-inline-code {
+      .wispoke-message-content .ce-inline-code {
         background: ${colors.bgInput};
         padding: 1px 5px;
         border-radius: 4px;
@@ -461,11 +461,11 @@
         font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
       }
 
-      .botbeetle-message.user .botbeetle-message-content {
+      .wispoke-message.user .wispoke-message-content {
         white-space: pre-wrap;
       }
 
-      .botbeetle-welcome {
+      .wispoke-welcome {
         display: flex;
         flex-direction: column;
         align-items: flex-start;
@@ -473,48 +473,48 @@
         padding: ${isBubbles ? '24px' : '20px'};
       }
 
-      .botbeetle-welcome-centered {
+      .wispoke-welcome-centered {
         flex: 1;
         align-items: center;
         justify-content: center;
         text-align: center;
       }
 
-      .botbeetle-welcome h4 {
+      .wispoke-welcome h4 {
         font-size: ${isBubbles ? '16px' : isMinimal ? '14px' : '15px'};
         font-weight: ${isBubbles ? '500' : '400'};
         color: ${isBubbles ? colors.text : colors.textSecondary};
         margin-bottom: 4px;
       }
 
-      .botbeetle-welcome-sub {
+      .wispoke-welcome-sub {
         font-size: ${isMinimal ? '12px' : '13px'};
         color: ${colors.textMuted};
       }
 
-      .botbeetle-typing {
+      .wispoke-typing {
         display: flex;
         gap: 4px;
         padding: 8px 0;
       }
 
-      .botbeetle-typing-dot {
+      .wispoke-typing-dot {
         width: 6px;
         height: 6px;
         background: ${colors.textMuted};
         border-radius: 50%;
-        animation: botbeetle-bounce 1.4s infinite ease-in-out;
+        animation: wispoke-bounce 1.4s infinite ease-in-out;
       }
 
-      .botbeetle-typing-dot:nth-child(1) { animation-delay: -0.32s; }
-      .botbeetle-typing-dot:nth-child(2) { animation-delay: -0.16s; }
+      .wispoke-typing-dot:nth-child(1) { animation-delay: -0.32s; }
+      .wispoke-typing-dot:nth-child(2) { animation-delay: -0.16s; }
 
-      @keyframes botbeetle-bounce {
+      @keyframes wispoke-bounce {
         0%, 80%, 100% { opacity: 0.4; }
         40% { opacity: 1; }
       }
 
-      .botbeetle-suggested {
+      .wispoke-suggested {
         display: flex;
         flex-direction: column;
         align-items: flex-start;
@@ -522,7 +522,7 @@
         padding-top: 12px;
       }
 
-      .botbeetle-suggested-btn {
+      .wispoke-suggested-btn {
         padding: 8px 14px;
         font-size: 13px;
         border-radius: 10px;
@@ -536,18 +536,18 @@
         line-height: 1.4;
       }
 
-      .botbeetle-suggested-btn:hover {
+      .wispoke-suggested-btn:hover {
         border-color: ${primaryColor};
         color: ${primaryColor};
         background: ${theme === 'light' ? 'rgba(0,0,0,0.02)' : 'rgba(255,255,255,0.03)'};
       }
 
-      .botbeetle-input-area {
+      .wispoke-input-area {
         padding: ${inputAreaPad};
         flex-shrink: 0;
       }
 
-      .botbeetle-input-wrapper {
+      .wispoke-input-wrapper {
         display: flex;
         align-items: center;
         background: ${inputWrapperBg};
@@ -557,11 +557,11 @@
         ${inputWrapperBorder}
       }
 
-      .botbeetle-input-wrapper:focus-within {
+      .wispoke-input-wrapper:focus-within {
         ${isMinimal ? `border-color: ${primaryColor}; box-shadow: 0 0 0 1px ${primaryColor}40;` : `box-shadow: 0 0 0 2px ${colors.focusRing};`}
       }
 
-      .botbeetle-input {
+      .wispoke-input {
         flex: 1;
         border: none;
         background: transparent;
@@ -575,11 +575,11 @@
         padding: 0;
       }
 
-      .botbeetle-input::placeholder {
+      .wispoke-input::placeholder {
         color: ${colors.textMuted};
       }
 
-      .botbeetle-send-btn {
+      .wispoke-send-btn {
         width: ${sendBtnSize};
         height: ${sendBtnSize};
         border-radius: ${sendBtnRadius};
@@ -594,22 +594,22 @@
         flex-shrink: 0;
       }
 
-      .botbeetle-send-btn:hover:not(:disabled) {
+      .wispoke-send-btn:hover:not(:disabled) {
         ${isBubbles ? `opacity: 0.9;` : isMinimal ? `opacity: 0.9;` : `color: ${colors.text};`}
       }
 
-      .botbeetle-send-btn:disabled {
+      .wispoke-send-btn:disabled {
         ${isBubbles ? `background: ${sendBtnDisabledBg}; color: ${sendBtnDisabledColor}; cursor: not-allowed;`
         : isMinimal ? `background: ${sendBtnDisabledBg}; color: ${sendBtnDisabledColor}; opacity: 0.4; cursor: not-allowed;`
         : `opacity: 0.3; cursor: not-allowed;`}
       }
 
-      .botbeetle-send-btn svg {
+      .wispoke-send-btn svg {
         width: ${sendBtnIconSize};
         height: ${sendBtnIconSize};
       }
 
-      .botbeetle-powered {
+      .wispoke-powered {
         text-align: center;
         padding: 8px;
         font-size: 10px;
@@ -617,26 +617,26 @@
         border-top: 1px solid ${colors.border};
       }
 
-      .botbeetle-powered a {
+      .wispoke-powered a {
         color: ${colors.textMuted};
         text-decoration: none;
       }
 
-      .botbeetle-powered a:hover {
+      .wispoke-powered a:hover {
         color: ${colors.textSecondary};
       }
 
-      .botbeetle-cursor {
+      .wispoke-cursor {
         display: inline-block;
         width: 2px;
         height: 14px;
         background: ${colors.textMuted};
         margin-left: 2px;
-        animation: botbeetle-blink 0.8s infinite;
+        animation: wispoke-blink 0.8s infinite;
         vertical-align: text-bottom;
       }
 
-      @keyframes botbeetle-blink {
+      @keyframes wispoke-blink {
         0%, 50% { opacity: 1; }
         51%, 100% { opacity: 0; }
       }
@@ -650,41 +650,41 @@
     // Build powered-by section
     const poweredByHtml = hideBranding
       ? ''
-      : `<div class="botbeetle-powered">Powered by <a href="https://botbeetle.com" target="_blank">BotBeetle</a></div>`;
+      : `<div class="wispoke-powered">Powered by <a href="https://wispoke.com" target="_blank">Wispoke</a></div>`;
 
     // Create widget
     const container = document.createElement('div');
-    container.className = 'botbeetle-widget-container';
+    container.className = 'wispoke-widget-container';
     container.innerHTML = `
-      <button class="botbeetle-toggle-btn" aria-label="Open chat">
+      <button class="wispoke-toggle-btn" aria-label="Open chat">
         ${selectedIcon}
         ${closeIcon}
       </button>
-      <div class="botbeetle-modal">
-        <div class="botbeetle-header">
-          <div class="botbeetle-header-text">
+      <div class="wispoke-modal">
+        <div class="wispoke-header">
+          <div class="wispoke-header-text">
             <div>
-              <h3 class="botbeetle-title">Chat Assistant</h3>
-              ${showHeaderSubtitle && subtitleText ? `<p class="botbeetle-subtitle">${subtitleText}</p>` : ''}
+              <h3 class="wispoke-title">Chat Assistant</h3>
+              ${showHeaderSubtitle && subtitleText ? `<p class="wispoke-subtitle">${subtitleText}</p>` : ''}
             </div>
           </div>
-          <button class="botbeetle-close-btn" aria-label="Close">
+          <button class="wispoke-close-btn" aria-label="Close">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${isMinimal ? '2' : isBubbles ? '2.5' : '2'}"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
           </button>
         </div>
-        <div class="botbeetle-messages">
-          ${(welcomeText || subtitleText) ? `<div class="botbeetle-welcome ${suggestedMessages.length ? '' : 'botbeetle-welcome-centered'}">
-            ${welcomeText ? `<h4 class="botbeetle-welcome-text">${welcomeText}</h4>` : ''}
-            ${subtitleText ? `<p class="botbeetle-welcome-sub">${subtitleText}</p>` : ''}
+        <div class="wispoke-messages">
+          ${(welcomeText || subtitleText) ? `<div class="wispoke-welcome ${suggestedMessages.length ? '' : 'wispoke-welcome-centered'}">
+            ${welcomeText ? `<h4 class="wispoke-welcome-text">${welcomeText}</h4>` : ''}
+            ${subtitleText ? `<p class="wispoke-welcome-sub">${subtitleText}</p>` : ''}
           </div>` : ''}
-          <div class="botbeetle-suggested" style="${suggestedMessages.length ? '' : 'display:none'}">
-            ${suggestedMessages.map(msg => `<button class="botbeetle-suggested-btn">${escapeHtml(msg)}</button>`).join('')}
+          <div class="wispoke-suggested" style="${suggestedMessages.length ? '' : 'display:none'}">
+            ${suggestedMessages.map(msg => `<button class="wispoke-suggested-btn">${escapeHtml(msg)}</button>`).join('')}
           </div>
         </div>
-        <div class="botbeetle-input-area">
-          <div class="botbeetle-input-wrapper">
-            <textarea class="botbeetle-input" placeholder="${placeholderText}" rows="1"></textarea>
-            <button class="botbeetle-send-btn" disabled>
+        <div class="wispoke-input-area">
+          <div class="wispoke-input-wrapper">
+            <textarea class="wispoke-input" placeholder="${placeholderText}" rows="1"></textarea>
+            <button class="wispoke-send-btn" disabled>
               ${sendIcon}
             </button>
           </div>
@@ -696,13 +696,13 @@
     document.body.appendChild(container);
 
     // DOM elements
-    const toggleBtn = container.querySelector('.botbeetle-toggle-btn');
-    const modal = container.querySelector('.botbeetle-modal');
-    const closeBtn = container.querySelector('.botbeetle-close-btn');
-    const messagesContainer = container.querySelector('.botbeetle-messages');
-    const input = container.querySelector('.botbeetle-input');
-    const sendBtn = container.querySelector('.botbeetle-send-btn');
-    const headerTitle = container.querySelector('.botbeetle-title');
+    const toggleBtn = container.querySelector('.wispoke-toggle-btn');
+    const modal = container.querySelector('.wispoke-modal');
+    const closeBtn = container.querySelector('.wispoke-close-btn');
+    const messagesContainer = container.querySelector('.wispoke-messages');
+    const input = container.querySelector('.wispoke-input');
+    const sendBtn = container.querySelector('.wispoke-send-btn');
+    const headerTitle = container.querySelector('.wispoke-title');
 
     // Fetch company info
     async function fetchCompanyInfo() {
@@ -715,7 +715,7 @@
           }
         }
       } catch (e) {
-        console.error('BotBeetle Widget: Failed to fetch company info');
+        console.error('Wispoke Widget: Failed to fetch company info');
       }
     }
 
@@ -789,13 +789,13 @@
     }
 
     function addBotMessage(content) {
-      const welcome = messagesContainer.querySelector('.botbeetle-welcome');
+      const welcome = messagesContainer.querySelector('.wispoke-welcome');
       if (welcome) welcome.remove();
 
       const div = document.createElement('div');
-      div.className = 'botbeetle-message bot-msg';
+      div.className = 'wispoke-message bot-msg';
 
-      div.innerHTML = `<div class="botbeetle-message-content">${renderMarkdown(content)}</div>`;
+      div.innerHTML = `<div class="wispoke-message-content">${renderMarkdown(content)}</div>`;
       messagesContainer.appendChild(div);
       scrollToBottom();
       return div;
@@ -804,12 +804,12 @@
     function addMessage(content, isUser = false) {
       if (!isUser) return addBotMessage(content);
 
-      const welcome = messagesContainer.querySelector('.botbeetle-welcome');
+      const welcome = messagesContainer.querySelector('.wispoke-welcome');
       if (welcome) welcome.remove();
 
       const div = document.createElement('div');
-      div.className = 'botbeetle-message user';
-      div.innerHTML = `<div class="botbeetle-message-content">${escapeHtml(content)}</div>`;
+      div.className = 'wispoke-message user';
+      div.innerHTML = `<div class="wispoke-message-content">${escapeHtml(content)}</div>`;
       messagesContainer.appendChild(div);
       scrollToBottom();
       return div;
@@ -817,16 +817,16 @@
 
     function showTyping() {
       const div = document.createElement('div');
-      div.className = 'botbeetle-message bot-msg';
-      div.id = 'botbeetle-typing';
+      div.className = 'wispoke-message bot-msg';
+      div.id = 'wispoke-typing';
 
-      div.innerHTML = `<div class="botbeetle-typing"><div class="botbeetle-typing-dot"></div><div class="botbeetle-typing-dot"></div><div class="botbeetle-typing-dot"></div></div>`;
+      div.innerHTML = `<div class="wispoke-typing"><div class="wispoke-typing-dot"></div><div class="wispoke-typing-dot"></div><div class="wispoke-typing-dot"></div></div>`;
       messagesContainer.appendChild(div);
       scrollToBottom();
     }
 
     function hideTyping() {
-      const el = document.getElementById('botbeetle-typing');
+      const el = document.getElementById('wispoke-typing');
       if (el) el.remove();
     }
 
@@ -874,20 +874,20 @@
                   fullResponse += data.content;
                   if (!aiDiv) {
                     // Replace typing indicator in-place to avoid any gap
-                    const typingEl = document.getElementById('botbeetle-typing');
+                    const typingEl = document.getElementById('wispoke-typing');
                     if (typingEl) {
                       typingEl.removeAttribute('id');
-                      typingEl.innerHTML = `<div class="botbeetle-message-content"></div>`;
+                      typingEl.innerHTML = `<div class="wispoke-message-content"></div>`;
                       aiDiv = typingEl;
                     } else {
                       aiDiv = addBotMessage('');
                     }
                   }
-                  aiDiv.querySelector('.botbeetle-message-content').innerHTML = renderMarkdown(fullResponse) + '<span class="botbeetle-cursor"></span>';
+                  aiDiv.querySelector('.wispoke-message-content').innerHTML = renderMarkdown(fullResponse) + '<span class="wispoke-cursor"></span>';
                   scrollToBottom();
                 } else if (data.type === 'end' && aiDiv) {
                   // Final render without cursor
-                  aiDiv.querySelector('.botbeetle-message-content').innerHTML = renderMarkdown(fullResponse);
+                  aiDiv.querySelector('.wispoke-message-content').innerHTML = renderMarkdown(fullResponse);
 
                 } else if (data.type === 'error') {
                   throw new Error(data.error);
@@ -922,12 +922,12 @@
     }
 
     // Suggested messages
-    const suggestedContainer = container.querySelector('.botbeetle-suggested');
+    const suggestedContainer = container.querySelector('.wispoke-suggested');
     function hideSuggested() {
       if (suggestedContainer) suggestedContainer.style.display = 'none';
     }
 
-    container.querySelectorAll('.botbeetle-suggested-btn').forEach(btn => {
+    container.querySelectorAll('.wispoke-suggested-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         input.value = btn.textContent;
         hideSuggested();
