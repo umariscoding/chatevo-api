@@ -1,4 +1,4 @@
-# Chatelio - Multi-Tenant Chatbot-as-a-Service Platform
+# BotBeetle - Multi-Tenant Chatbot-as-a-Service Platform
 
 A FastAPI-based multi-tenant chatbot platform that provides Chatbot-as-a-Service with Retrieval-Augmented Generation (RAG) capabilities. Companies can create their own chatbots, upload knowledge bases, and deploy them with custom subdomains.
 
@@ -6,7 +6,7 @@ A FastAPI-based multi-tenant chatbot platform that provides Chatbot-as-a-Service
 
 - **Multi-Tenant Architecture**: Complete company isolation with separate knowledge bases
 - **RAG-powered Q&A**: Companies can upload documents and create intelligent chatbots
-- **Subdomain Routing**: Each company gets their own chatbot URL (e.g., `companyname.chatelio.com`)
+- **Subdomain Routing**: Each company gets their own chatbot URL (e.g., `companyname.botbeetle.com`)
 - **Guest & Registered Users**: Support for both anonymous guests and registered users
 - **Document Management**: Upload and manage knowledge base documents
 - **Chat History**: Persistent chat history with complete user isolation
@@ -44,8 +44,8 @@ A FastAPI-based multi-tenant chatbot platform that provides Chatbot-as-a-Service
    recommended because system packages like `libpq` may be required):
 
    ```bash
-   conda create -n chatelio python=3.11
-   conda activate  chatelio
+   conda create -n botbeetle python=3.11
+   conda activate  botbeetle
    pip install -r requirements.txt
    ```
 

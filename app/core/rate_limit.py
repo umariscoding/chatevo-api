@@ -15,7 +15,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 
-logger = logging.getLogger("chatevo.rate_limit")
+logger = logging.getLogger("botbeetle.rate_limit")
 
 DEFAULT_MAX_REQUESTS = 60
 DEFAULT_WINDOW_SECONDS = 60

@@ -24,7 +24,7 @@ from app.features.billing.repository import (
 )
 from app.features.auth.repository import get_company_by_id
 
-logger = logging.getLogger("chatevo.billing")
+logger = logging.getLogger("botbeetle.billing")
 
 LS_API_BASE = "https://api.lemonsqueezy.com/v1"
 

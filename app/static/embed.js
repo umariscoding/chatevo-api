@@ -7,7 +7,7 @@
   const apiUrl = scriptTag?.getAttribute('data-api-url') || 'http://localhost:8000';
 
   if (!companySlug) {
-    console.error('ChatEvo Widget: Missing data-company-slug attribute');
+    console.error('BotBeetle Widget: Missing data-company-slug attribute');
     return;
   }
 
@@ -220,14 +220,14 @@
 
     // CSS Styles with theme + template support
     const styles = `
-      .chatevo-widget-container * {
+      .botbeetle-widget-container * {
         box-sizing: border-box;
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         margin: 0;
         padding: 0;
       }
 
-      .chatevo-toggle-btn {
+      .botbeetle-toggle-btn {
         position: fixed;
         ${position === 'bottom-left' ? 'left: 20px;' : 'right: 20px;'}
         bottom: 20px;
@@ -245,38 +245,38 @@
         z-index: 999998;
       }
 
-      .chatevo-toggle-btn:hover {
+      .botbeetle-toggle-btn:hover {
         transform: scale(1.05);
       }
 
-      .chatevo-toggle-btn svg {
+      .botbeetle-toggle-btn svg {
         width: 24px;
         height: 24px;
         color: white;
         transition: opacity 0.3s ease, transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
       }
 
-      .chatevo-toggle-btn svg.chat-icon {
+      .botbeetle-toggle-btn svg.chat-icon {
         transform: scale(1) rotate(0deg);
       }
 
-      .chatevo-toggle-btn.open svg.chat-icon {
+      .botbeetle-toggle-btn.open svg.chat-icon {
         opacity: 0;
         transform: scale(0) rotate(90deg);
       }
 
-      .chatevo-toggle-btn svg.close-icon {
+      .botbeetle-toggle-btn svg.close-icon {
         position: absolute;
         opacity: 0;
         transform: scale(0) rotate(-90deg);
       }
 
-      .chatevo-toggle-btn.open svg.close-icon {
+      .botbeetle-toggle-btn.open svg.close-icon {
         opacity: 1;
         transform: scale(1) rotate(0deg);
       }
 
-      .chatevo-modal {
+      .botbeetle-modal {
         position: fixed;
         ${position === 'bottom-left' ? 'left: 20px;' : 'right: 20px;'}
         bottom: 88px;
@@ -298,14 +298,14 @@
         transition: all 0.2s ease;
       }
 
-      .chatevo-modal.open {
+      .botbeetle-modal.open {
         transform: translateY(0);
         opacity: 1;
         visibility: visible;
       }
 
       @media (max-width: 480px) {
-        .chatevo-modal {
+        .botbeetle-modal {
           left: 8px;
           right: 8px;
           bottom: 8px;
@@ -317,7 +317,7 @@
         }
       }
 
-      .chatevo-header {
+      .botbeetle-header {
         padding: ${headerPadding};
         display: flex;
         align-items: center;
@@ -327,25 +327,25 @@
         ${headerBorder}
       }
 
-      .chatevo-header-text {
+      .botbeetle-header-text {
         display: flex;
         align-items: center;
         gap: ${isBubbles ? '12px' : '0'};
       }
 
-      .chatevo-header-text h3 {
+      .botbeetle-header-text h3 {
         font-size: ${headerTitleSize};
         font-weight: ${headerTitleWeight};
         color: ${headerTitleColor};
       }
 
-      .chatevo-header-text p {
+      .botbeetle-header-text p {
         font-size: ${headerSubtitleSize};
         color: ${headerSubtitleColor};
         margin-top: ${isMinimal ? '1px' : '2px'};
       }
 
-      .chatevo-close-btn {
+      .botbeetle-close-btn {
         width: ${closeBtnSize};
         height: ${closeBtnSize};
         border-radius: ${closeBtnRadius};
@@ -359,17 +359,17 @@
         transition: all 0.15s;
       }
 
-      .chatevo-close-btn:hover {
+      .botbeetle-close-btn:hover {
         background: ${closeBtnHoverBg};
         color: ${closeBtnHoverColor};
       }
 
-      .chatevo-close-btn svg {
+      .botbeetle-close-btn svg {
         width: ${closeBtnIconSize};
         height: ${closeBtnIconSize};
       }
 
-      .chatevo-messages {
+      .botbeetle-messages {
         flex: 1;
         overflow-y: auto;
         padding: ${msgAreaPad};
@@ -377,70 +377,70 @@
         flex-direction: column;
       }
 
-      .chatevo-messages::-webkit-scrollbar {
+      .botbeetle-messages::-webkit-scrollbar {
         width: 4px;
       }
 
-      .chatevo-messages::-webkit-scrollbar-thumb {
+      .botbeetle-messages::-webkit-scrollbar-thumb {
         background: ${colors.scrollbar};
         border-radius: 4px;
       }
 
-      .chatevo-message {
+      .botbeetle-message {
         max-width: 85%;
         margin-bottom: ${msgSpacing};
-        animation: chatevo-fadeIn 0.2s ease;
+        animation: botbeetle-fadeIn 0.2s ease;
       }
 
-      @keyframes chatevo-fadeIn {
+      @keyframes botbeetle-fadeIn {
         from { opacity: 0; transform: translateY(4px); }
         to { opacity: 1; transform: translateY(0); }
       }
 
-      .chatevo-message.user {
+      .botbeetle-message.user {
         align-self: flex-end;
       }
 
-      .chatevo-message.bot-msg {
+      .botbeetle-message.bot-msg {
         display: flex;
         align-items: ${isBubbles ? 'flex-end' : 'flex-start'};
         gap: 8px;
       }
 
-      .chatevo-message.user .chatevo-message-content {
+      .botbeetle-message.user .botbeetle-message-content {
         ${userMsgStyles}
       }
 
-      .chatevo-message:not(.user) .chatevo-message-content {
+      .botbeetle-message:not(.user) .botbeetle-message-content {
         ${botMsgContentStyles}
       }
 
-      .chatevo-message-content {
+      .botbeetle-message-content {
         font-size: 14px;
         word-break: break-word;
         line-height: 1.6;
       }
 
-      .chatevo-message-content strong {
+      .botbeetle-message-content strong {
         font-weight: 600;
         color: ${colors.text};
       }
 
-      .chatevo-message-content em {
+      .botbeetle-message-content em {
         font-style: italic;
       }
 
-      .chatevo-message-content .ce-list {
+      .botbeetle-message-content .ce-list {
         margin: 4px 0;
         padding: 0 0 0 20px;
       }
 
-      .chatevo-message-content .ce-list li {
+      .botbeetle-message-content .ce-list li {
         margin-bottom: 2px;
         line-height: 1.5;
       }
 
-      .chatevo-message-content .ce-code-block {
+      .botbeetle-message-content .ce-code-block {
         background: ${colors.bgInput};
         padding: 10px 12px;
         border-radius: 8px;
@@ -453,7 +453,7 @@
         word-break: break-word;
       }
 
-      .chatevo-message-content .ce-inline-code {
+      .botbeetle-message-content .ce-inline-code {
         background: ${colors.bgInput};
         padding: 1px 5px;
         border-radius: 4px;
@@ -461,11 +461,11 @@
         font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
       }
 
-      .chatevo-message.user .chatevo-message-content {
+      .botbeetle-message.user .botbeetle-message-content {
         white-space: pre-wrap;
       }
 
-      .chatevo-welcome {
+      .botbeetle-welcome {
         display: flex;
         flex-direction: column;
         align-items: flex-start;
@@ -473,48 +473,48 @@
         padding: ${isBubbles ? '24px' : '20px'};
       }
 
-      .chatevo-welcome-centered {
+      .botbeetle-welcome-centered {
         flex: 1;
         align-items: center;
         justify-content: center;
         text-align: center;
       }
 
-      .chatevo-welcome h4 {
+      .botbeetle-welcome h4 {
         font-size: ${isBubbles ? '16px' : isMinimal ? '14px' : '15px'};
         font-weight: ${isBubbles ? '500' : '400'};
         color: ${isBubbles ? colors.text : colors.textSecondary};
         margin-bottom: 4px;
       }
 
-      .chatevo-welcome-sub {
+      .botbeetle-welcome-sub {
         font-size: ${isMinimal ? '12px' : '13px'};
         color: ${colors.textMuted};
       }
 
-      .chatevo-typing {
+      .botbeetle-typing {
         display: flex;
         gap: 4px;
         padding: 8px 0;
       }
 
-      .chatevo-typing-dot {
+      .botbeetle-typing-dot {
         width: 6px;
         height: 6px;
         background: ${colors.textMuted};
         border-radius: 50%;
-        animation: chatevo-bounce 1.4s infinite ease-in-out;
+        animation: botbeetle-bounce 1.4s infinite ease-in-out;
       }
 
-      .chatevo-typing-dot:nth-child(1) { animation-delay: -0.32s; }
-      .chatevo-typing-dot:nth-child(2) { animation-delay: -0.16s; }
+      .botbeetle-typing-dot:nth-child(1) { animation-delay: -0.32s; }
+      .botbeetle-typing-dot:nth-child(2) { animation-delay: -0.16s; }
 
-      @keyframes chatevo-bounce {
+      @keyframes botbeetle-bounce {
         0%, 80%, 100% { opacity: 0.4; }
         40% { opacity: 1; }
       }
 
-      .chatevo-suggested {
+      .botbeetle-suggested {
         display: flex;
         flex-direction: column;
         align-items: flex-start;
@@ -522,7 +522,7 @@
         padding-top: 12px;
       }
 
-      .chatevo-suggested-btn {
+      .botbeetle-suggested-btn {
         padding: 8px 14px;
         font-size: 13px;
         border-radius: 10px;
@@ -536,18 +536,18 @@
         line-height: 1.4;
       }
 
-      .chatevo-suggested-btn:hover {
+      .botbeetle-suggested-btn:hover {
         border-color: ${primaryColor};
         color: ${primaryColor};
         background: ${theme === 'light' ? 'rgba(0,0,0,0.02)' : 'rgba(255,255,255,0.03)'};
       }
 
-      .chatevo-input-area {
+      .botbeetle-input-area {
         padding: ${inputAreaPad};
         flex-shrink: 0;
       }
 
-      .chatevo-input-wrapper {
+      .botbeetle-input-wrapper {
         display: flex;
         align-items: center;
         background: ${inputWrapperBg};
@@ -557,11 +557,11 @@
         ${inputWrapperBorder}
       }
 
-      .chatevo-input-wrapper:focus-within {
+      .botbeetle-input-wrapper:focus-within {
         ${isMinimal ? `border-color: ${primaryColor}; box-shadow: 0 0 0 1px ${primaryColor}40;` : `box-shadow: 0 0 0 2px ${colors.focusRing};`}
       }
 
-      .chatevo-input {
+      .botbeetle-input {
         flex: 1;
         border: none;
         background: transparent;
@@ -575,11 +575,11 @@
         padding: 0;
       }
 
-      .chatevo-input::placeholder {
+      .botbeetle-input::placeholder {
         color: ${colors.textMuted};
       }
 
-      .chatevo-send-btn {
+      .botbeetle-send-btn {
         width: ${sendBtnSize};
         height: ${sendBtnSize};
         border-radius: ${sendBtnRadius};
@@ -594,22 +594,22 @@
         flex-shrink: 0;
       }
 
-      .chatevo-send-btn:hover:not(:disabled) {
+      .botbeetle-send-btn:hover:not(:disabled) {
         ${isBubbles ? `opacity: 0.9;` : isMinimal ? `opacity: 0.9;` : `color: ${colors.text};`}
       }
 
-      .chatevo-send-btn:disabled {
+      .botbeetle-send-btn:disabled {
         ${isBubbles ? `background: ${sendBtnDisabledBg}; color: ${sendBtnDisabledColor}; cursor: not-allowed;`
         : isMinimal ? `background: ${sendBtnDisabledBg}; color: ${sendBtnDisabledColor}; opacity: 0.4; cursor: not-allowed;`
         : `opacity: 0.3; cursor: not-allowed;`}
       }
 
-      .chatevo-send-btn svg {
+      .botbeetle-send-btn svg {
         width: ${sendBtnIconSize};
         height: ${sendBtnIconSize};
       }
 
-      .chatevo-powered {
+      .botbeetle-powered {
         text-align: center;
         padding: 8px;
         font-size: 10px;
@@ -617,26 +617,26 @@
         border-top: 1px solid ${colors.border};
       }
 
-      .chatevo-powered a {
+      .botbeetle-powered a {
         color: ${colors.textMuted};
         text-decoration: none;
       }
 
-      .chatevo-powered a:hover {
+      .botbeetle-powered a:hover {
         color: ${colors.textSecondary};
       }
 
-      .chatevo-cursor {
+      .botbeetle-cursor {
         display: inline-block;
         width: 2px;
         height: 14px;
         background: ${colors.textMuted};
         margin-left: 2px;
-        animation: chatevo-blink 0.8s infinite;
+        animation: botbeetle-blink 0.8s infinite;
         vertical-align: text-bottom;
       }
 
-      @keyframes chatevo-blink {
+      @keyframes botbeetle-blink {
         0%, 50% { opacity: 1; }
         51%, 100% { opacity: 0; }
       }
@@ -650,41 +650,41 @@
     // Build powered-by section
     const poweredByHtml = hideBranding
       ? ''
-      : `<div class="chatevo-powered">Powered by <a href="https://chatevo.com" target="_blank">ChatEvo</a></div>`;
+      : `<div class="botbeetle-powered">Powered by <a href="https://botbeetle.com" target="_blank">BotBeetle</a></div>`;
 
     // Create widget
     const container = document.createElement('div');
-    container.className = 'chatevo-widget-container';
+    container.className = 'botbeetle-widget-container';
     container.innerHTML = `
-      <button class="chatevo-toggle-btn" aria-label="Open chat">
+      <button class="botbeetle-toggle-btn" aria-label="Open chat">
         ${selectedIcon}
         ${closeIcon}
       </button>
-      <div class="chatevo-modal">
-        <div class="chatevo-header">
-          <div class="chatevo-header-text">
+      <div class="botbeetle-modal">
+        <div class="botbeetle-header">
+          <div class="botbeetle-header-text">
             <div>
-              <h3 class="chatevo-title">Chat Assistant</h3>
-              ${showHeaderSubtitle && subtitleText ? `<p class="chatevo-subtitle">${subtitleText}</p>` : ''}
+              <h3 class="botbeetle-title">Chat Assistant</h3>
+              ${showHeaderSubtitle && subtitleText ? `<p class="botbeetle-subtitle">${subtitleText}</p>` : ''}
             </div>
           </div>
-          <button class="chatevo-close-btn" aria-label="Close">
+          <button class="botbeetle-close-btn" aria-label="Close">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${isMinimal ? '2' : isBubbles ? '2.5' : '2'}"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
           </button>
         </div>
-        <div class="chatevo-messages">
-          ${(welcomeText || subtitleText) ? `<div class="chatevo-welcome ${suggestedMessages.length ? '' : 'chatevo-welcome-centered'}">
-            ${welcomeText ? `<h4 class="chatevo-welcome-text">${welcomeText}</h4>` : ''}
-            ${subtitleText ? `<p class="chatevo-welcome-sub">${subtitleText}</p>` : ''}
+        <div class="botbeetle-messages">
+          ${(welcomeText || subtitleText) ? `<div class="botbeetle-welcome ${suggestedMessages.length ? '' : 'botbeetle-welcome-centered'}">
+            ${welcomeText ? `<h4 class="botbeetle-welcome-text">${welcomeText}</h4>` : ''}
+            ${subtitleText ? `<p class="botbeetle-welcome-sub">${subtitleText}</p>` : ''}
           </div>` : ''}
-          <div class="chatevo-suggested" style="${suggestedMessages.length ? '' : 'display:none'}">
-            ${suggestedMessages.map(msg => `<button class="chatevo-suggested-btn">${escapeHtml(msg)}</button>`).join('')}
+          <div class="botbeetle-suggested" style="${suggestedMessages.length ? '' : 'display:none'}">
+            ${suggestedMessages.map(msg => `<button class="botbeetle-suggested-btn">${escapeHtml(msg)}</button>`).join('')}
           </div>
         </div>
-        <div class="chatevo-input-area">
-          <div class="chatevo-input-wrapper">
-            <textarea class="chatevo-input" placeholder="${placeholderText}" rows="1"></textarea>
-            <button class="chatevo-send-btn" disabled>
+        <div class="botbeetle-input-area">
+          <div class="botbeetle-input-wrapper">
+            <textarea class="botbeetle-input" placeholder="${placeholderText}" rows="1"></textarea>
+            <button class="botbeetle-send-btn" disabled>
               ${sendIcon}
             </button>
           </div>
@@ -696,13 +696,13 @@
     document.body.appendChild(container);
 
     // DOM elements
-    const toggleBtn = container.querySelector('.chatevo-toggle-btn');
-    const modal = container.querySelector('.chatevo-modal');
-    const closeBtn = container.querySelector('.chatevo-close-btn');
-    const messagesContainer = container.querySelector('.chatevo-messages');
-    const input = container.querySelector('.chatevo-input');
-    const sendBtn = container.querySelector('.chatevo-send-btn');
-    const headerTitle = container.querySelector('.chatevo-title');
+    const toggleBtn = container.querySelector('.botbeetle-toggle-btn');
+    const modal = container.querySelector('.botbeetle-modal');
+    const closeBtn = container.querySelector('.botbeetle-close-btn');
+    const messagesContainer = container.querySelector('.botbeetle-messages');
+    const input = container.querySelector('.botbeetle-input');
+    const sendBtn = container.querySelector('.botbeetle-send-btn');
+    const headerTitle = container.querySelector('.botbeetle-title');
 
     // Fetch company info
     async function fetchCompanyInfo() {
@@ -715,7 +715,7 @@
           }
         }
       } catch (e) {
-        console.error('ChatEvo Widget: Failed to fetch company info');
+        console.error('BotBeetle Widget: Failed to fetch company info');
       }
     }
 
@@ -789,13 +789,13 @@
     }
 
     function addBotMessage(content) {
-      const welcome = messagesContainer.querySelector('.chatevo-welcome');
+      const welcome = messagesContainer.querySelector('.botbeetle-welcome');
       if (welcome) welcome.remove();
 
       const div = document.createElement('div');
-      div.className = 'chatevo-message bot-msg';
+      div.className = 'botbeetle-message bot-msg';
 
-      div.innerHTML = `<div class="chatevo-message-content">${renderMarkdown(content)}</div>`;
+      div.innerHTML = `<div class="botbeetle-message-content">${renderMarkdown(content)}</div>`;
       messagesContainer.appendChild(div);
       scrollToBottom();
       return div;
@@ -804,12 +804,12 @@
     function addMessage(content, isUser = false) {
       if (!isUser) return addBotMessage(content);
 
-      const welcome = messagesContainer.querySelector('.chatevo-welcome');
+      const welcome = messagesContainer.querySelector('.botbeetle-welcome');
       if (welcome) welcome.remove();
 
       const div = document.createElement('div');
-      div.className = 'chatevo-message user';
-      div.innerHTML = `<div class="chatevo-message-content">${escapeHtml(content)}</div>`;
+      div.className = 'botbeetle-message user';
+      div.innerHTML = `<div class="botbeetle-message-content">${escapeHtml(content)}</div>`;
       messagesContainer.appendChild(div);
       scrollToBottom();
       return div;
@@ -817,16 +817,16 @@
 
     function showTyping() {
       const div = document.createElement('div');
-      div.className = 'chatevo-message bot-msg';
-      div.id = 'chatevo-typing';
+      div.className = 'botbeetle-message bot-msg';
+      div.id = 'botbeetle-typing';
 
-      div.innerHTML = `<div class="chatevo-typing"><div class="chatevo-typing-dot"></div><div class="chatevo-typing-dot"></div><div class="chatevo-typing-dot"></div></div>`;
+      div.innerHTML = `<div class="botbeetle-typing"><div class="botbeetle-typing-dot"></div><div class="botbeetle-typing-dot"></div><div class="botbeetle-typing-dot"></div></div>`;
       messagesContainer.appendChild(div);
       scrollToBottom();
     }
 
     function hideTyping() {
-      const el = document.getElementById('chatevo-typing');
+      const el = document.getElementById('botbeetle-typing');
       if (el) el.remove();
     }
 
@@ -874,20 +874,20 @@
                   fullResponse += data.content;
                   if (!aiDiv) {
                     // Replace typing indicator in-place to avoid any gap
-                    const typingEl = document.getElementById('chatevo-typing');
+                    const typingEl = document.getElementById('botbeetle-typing');
                     if (typingEl) {
                       typingEl.removeAttribute('id');
-                      typingEl.innerHTML = `<div class="chatevo-message-content"></div>`;
+                      typingEl.innerHTML = `<div class="botbeetle-message-content"></div>`;
                       aiDiv = typingEl;
                     } else {
                       aiDiv = addBotMessage('');
                     }
                   }
-                  aiDiv.querySelector('.chatevo-message-content').innerHTML = renderMarkdown(fullResponse) + '<span class="chatevo-cursor"></span>';
+                  aiDiv.querySelector('.botbeetle-message-content').innerHTML = renderMarkdown(fullResponse) + '<span class="botbeetle-cursor"></span>';
                   scrollToBottom();
                 } else if (data.type === 'end' && aiDiv) {
                   // Final render without cursor
-                  aiDiv.querySelector('.chatevo-message-content').innerHTML = renderMarkdown(fullResponse);
+                  aiDiv.querySelector('.botbeetle-message-content').innerHTML = renderMarkdown(fullResponse);
 
                 } else if (data.type === 'error') {
                   throw new Error(data.error);
@@ -922,12 +922,12 @@
     }
 
     // Suggested messages
-    const suggestedContainer = container.querySelector('.chatevo-suggested');
+    const suggestedContainer = container.querySelector('.botbeetle-suggested');
     function hideSuggested() {
       if (suggestedContainer) suggestedContainer.style.display = 'none';
     }
 
-    container.querySelectorAll('.chatevo-suggested-btn').forEach(btn => {
+    container.querySelectorAll('.botbeetle-suggested-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         input.value = btn.textContent;
         hideSuggested();

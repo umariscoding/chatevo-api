@@ -19,7 +19,7 @@ def _check_pinecone_key():
 logger = logging.getLogger(__name__)
 
 _pinecone_client = None
-SHARED_INDEX_NAME = "chatelio-shared"
+SHARED_INDEX_NAME = "botbeetle-shared"
 
 
 def get_pinecone_client() -> Pinecone:
