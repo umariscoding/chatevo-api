@@ -1,13 +1,26 @@
 # Nixpacks build config for Railway.
 #
-# `libgl1` and `libglib2.0-0` are pulled in by `opencv-python` (a transitive
-# dependency of `pipecat-ai[webrtc]` → aiortc). The default Nixpacks Ubuntu
-# image is slim and doesn't ship them, so `import cv2` fails at startup with
-# `ImportError: libGL.so.1: cannot open shared object file`.
+# `opencv-python` is a transitive dep of `pipecat-ai[webrtc]` (via aiortc).
+# Pipecat's SmallWebRTC transport eager-imports `cv2` for video, but our
+# voice agent is audio-only. The slim Nixpacks Ubuntu image doesn't ship
+# the X11/GL runtime libs that cv2 dlopens at import time, so we need to:
 #
-# We don't actually use opencv — Pipecat's SmallWebRTC transport imports it
-# eagerly for video, but our voice agent is audio-only. Adding the system
-# libs is cheaper than forking Pipecat to lazy-import.
+#   1. Install them via apt (they land in /usr/lib/x86_64-linux-gnu/).
+#   2. Add that path to LD_LIBRARY_PATH so the Nix-managed Python — which
+#      uses RUNPATH against /nix/store/... and never searches /usr/lib by
+#      default — can actually find them.
+#
+# Cheaper than forking Pipecat to lazy-import opencv.
 
 [phases.setup]
-aptPkgs = ["...", "libgl1", "libglib2.0-0"]
+aptPkgs = [
+  "...",
+  "libgl1",
+  "libglib2.0-0",
+  "libsm6",
+  "libxext6",
+  "libxrender1",
+]
+
+[variables]
+LD_LIBRARY_PATH = "/usr/lib/x86_64-linux-gnu"
