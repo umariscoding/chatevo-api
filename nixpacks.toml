@@ -1,26 +1,20 @@
-# Nixpacks build config for Railway.
+# Build config for Railway.
 #
-# `opencv-python` (transitive dep of `pipecat-ai[webrtc]` via aiortc) eager-
-# imports `cv2`, which dlopens X11/GL runtime libs. The slim Nixpacks Ubuntu
-# image doesn't ship them, so we install the full opencv runtime set via apt.
-# They land in /usr/lib/x86_64-linux-gnu/.
+# Problem: pipecat-ai[webrtc] pulls in opencv-python, whose `cv2` module
+# dlopens X11/GL runtime libs at import. The slim Nixpacks Ubuntu image
+# doesn't ship them. Adding /usr/lib/x86_64-linux-gnu via LD_LIBRARY_PATH
+# breaks the Nix-built Python with vDSO errors (Ubuntu's glibc gets
+# picked up on top of Nix's).
 #
-# IMPORTANT: do NOT set LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu at build
-# time. The Nix-built Python is linked against Nix's glibc; if /usr/lib is
-# in the dynamic linker's search path during pip install, the linker pulls in
-# Ubuntu's libc.so / ld.so on top of Nix binaries and crashes with vDSO
-# symbol-resolution errors (e.g. `__vdso_time: invalid mode for dlopen()`).
-#
-# Instead, LD_LIBRARY_PATH is exported only at runtime in railway.json's
-# startCommand — the build phase stays on its native Nix paths, and only the
-# uvicorn process gets the apt libs added to its search path.
+# Fix: replace opencv-python with opencv-python-headless after the main
+# install. Headless exposes the same `cv2` module name (so pipecat's
+# `import cv2` keeps working) but ships *no* GUI/X11 bindings, so no
+# system libs are needed and the import succeeds on a stock slim image.
 
-[phases.setup]
-aptPkgs = [
-  "...",
-  "libgl1",
-  "libglib2.0-0",
-  "libsm6",
-  "libxext6",
-  "libxrender1",
+[phases.install]
+cmds = [
+  "python -m venv --copies /opt/venv",
+  ". /opt/venv/bin/activate && pip install -r requirements.txt",
+  ". /opt/venv/bin/activate && pip uninstall -y opencv-python",
+  ". /opt/venv/bin/activate && pip install --no-deps opencv-python-headless==4.11.0.86",
 ]
