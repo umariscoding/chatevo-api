@@ -1,0 +1,13 @@
+# Nixpacks build config for Railway.
+#
+# `libgl1` and `libglib2.0-0` are pulled in by `opencv-python` (a transitive
+# dependency of `pipecat-ai[webrtc]` → aiortc). The default Nixpacks Ubuntu
+# image is slim and doesn't ship them, so `import cv2` fails at startup with
+# `ImportError: libGL.so.1: cannot open shared object file`.
+#
+# We don't actually use opencv — Pipecat's SmallWebRTC transport imports it
+# eagerly for video, but our voice agent is audio-only. Adding the system
+# libs is cheaper than forking Pipecat to lazy-import.
+
+[phases.setup]
+aptPkgs = ["...", "libgl1", "libglib2.0-0"]
