@@ -22,8 +22,10 @@ class ScheduleSlotRequest(BaseModel):
     @field_validator("start_time", "end_time")
     @classmethod
     def validate_time_format(cls, v: str) -> str:
+        # Accept HH:MM or HH:MM:SS — Postgres TIME columns serialize as
+        # HH:MM:SS, so values round-tripped from a GET should validate too.
         parts = v.split(":")
-        if len(parts) != 2:
+        if len(parts) not in (2, 3):
             raise ValueError("Time must be in HH:MM format")
         try:
             h, m = int(parts[0]), int(parts[1])
