@@ -1,16 +1,19 @@
 # Nixpacks build config for Railway.
 #
-# `opencv-python` is a transitive dep of `pipecat-ai[webrtc]` (via aiortc).
-# Pipecat's SmallWebRTC transport eager-imports `cv2` for video, but our
-# voice agent is audio-only. The slim Nixpacks Ubuntu image doesn't ship
-# the X11/GL runtime libs that cv2 dlopens at import time, so we need to:
+# `opencv-python` (transitive dep of `pipecat-ai[webrtc]` via aiortc) eager-
+# imports `cv2`, which dlopens X11/GL runtime libs. The slim Nixpacks Ubuntu
+# image doesn't ship them, so we install the full opencv runtime set via apt.
+# They land in /usr/lib/x86_64-linux-gnu/.
 #
-#   1. Install them via apt (they land in /usr/lib/x86_64-linux-gnu/).
-#   2. Add that path to LD_LIBRARY_PATH so the Nix-managed Python — which
-#      uses RUNPATH against /nix/store/... and never searches /usr/lib by
-#      default — can actually find them.
+# IMPORTANT: do NOT set LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu at build
+# time. The Nix-built Python is linked against Nix's glibc; if /usr/lib is
+# in the dynamic linker's search path during pip install, the linker pulls in
+# Ubuntu's libc.so / ld.so on top of Nix binaries and crashes with vDSO
+# symbol-resolution errors (e.g. `__vdso_time: invalid mode for dlopen()`).
 #
-# Cheaper than forking Pipecat to lazy-import opencv.
+# Instead, LD_LIBRARY_PATH is exported only at runtime in railway.json's
+# startCommand — the build phase stays on its native Nix paths, and only the
+# uvicorn process gets the apt libs added to its search path.
 
 [phases.setup]
 aptPkgs = [
@@ -21,6 +24,3 @@ aptPkgs = [
   "libxext6",
   "libxrender1",
 ]
-
-[variables]
-LD_LIBRARY_PATH = "/usr/lib/x86_64-linux-gnu"
