@@ -1,24 +1,24 @@
 """
 Voice Agent — HTTP and WebSocket endpoints.
 
-Handles:
-- Settings CRUD (authenticated)
-- Deepgram Agent API WebSocket proxy (browser testing)
-- Twilio incoming call webhook (production)
-- WebSocket media stream handler (called by Twilio)
+Both browser and Twilio paths run through the same Pipecat pipeline
+(`pipeline.py`). The browser uses SmallWebRTC (WebRTC peer connection,
+SDP offer/answer); Twilio uses its WebSocket media stream.
 """
 
 import logging
-from fastapi import APIRouter, Depends, Request, WebSocket, WebSocketDisconnect
+from typing import Any, Dict
+
+from fastapi import APIRouter, Depends, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import Response
 
+from app.core.security import get_current_user_info
 from app.features.auth.dependencies import get_current_company, UserContext
 from app.features.voice_agent import service
+from app.features.voice_agent.pipeline import handle_browser_offer, run_twilio_call
+from app.features.voice_agent.repository import get_settings as get_va_settings
 from app.features.voice_agent.schemas import VoiceAgentSettingsRequest
-from app.features.voice_agent.stream_handler import VoiceStreamHandler
-from app.features.voice_agent.agent_handler import handle_agent_ws
-from app.features.availability.service import get_available_slots_for_date
-from app.features.appointments.service import create_appointment
+from pipecat.transports.smallwebrtc.request_handler import SmallWebRTCRequest
 
 logger = logging.getLogger("wispoke.voice")
 
@@ -26,7 +26,7 @@ router = APIRouter(prefix="/voice-agent", tags=["voice-agent"])
 
 
 # ---------------------------------------------------------------------------
-# Settings CRUD (authenticated)
+# Settings CRUD
 # ---------------------------------------------------------------------------
 
 @router.get("/settings")
@@ -35,166 +35,103 @@ async def get_settings(current_user: UserContext = Depends(get_current_company))
 
 
 @router.put("/settings")
-async def update_settings(body: VoiceAgentSettingsRequest, current_user: UserContext = Depends(get_current_company)):
+async def update_settings(
+    body: VoiceAgentSettingsRequest,
+    current_user: UserContext = Depends(get_current_company),
+):
     data = {k: v for k, v in body.model_dump().items() if v is not None}
     return service.update_settings(current_user.company_id, data)
 
 
 # ---------------------------------------------------------------------------
-# Deepgram Agent API — browser test call
+# Browser test call — Pipecat SmallWebRTC SDP offer/answer
 # ---------------------------------------------------------------------------
 
-@router.get("/agent-config")
-async def get_agent_config(current_user: UserContext = Depends(get_current_company)):
-    """Return the Deepgram Agent API config (without API keys) for debugging."""
-    from app.features.voice_agent.agent_handler import build_agent_config
-    from app.features.voice_agent.repository import get_settings as get_va_settings
+@router.post("/offer")
+async def voice_agent_offer(payload: Dict[str, Any], token: str = ""):
+    """Browser POSTs an SDP offer here; we return an SDP answer.
 
-    va_settings = get_va_settings(current_user.company_id)
-    if not va_settings:
-        va_settings = {}
-
-    config = build_agent_config(current_user.company_id, va_settings)
-    # Strip any API keys before returning
-    if "agent" in config and "think" in config["agent"]:
-        config["agent"]["think"]["provider"].pop("api_key", None)
-    return config
-
-
-@router.websocket("/agent/{company_id}")
-async def agent_websocket(websocket: WebSocket, company_id: str, token: str = ""):
+    Auth: JWT in `?token=...` query param (the Pipecat client SDK can attach
+    arbitrary query params to its connection URL).
     """
-    Browser connects here for test calls.
-    Validates JWT token via query param (?token=...) before accepting.
-    """
-    # Authenticate — browser WS can't send headers, so token is in query string
-    from app.core.security import get_current_user_info
     user_info = get_current_user_info(token) if token else None
     if not user_info or user_info.get("user_type") != "company":
-        await websocket.close(code=4001, reason="Unauthorized")
-        return
+        raise HTTPException(status_code=401, detail="Unauthorized")
 
-    # Verify the token's company matches the requested company_id
-    token_company = user_info.get("company_id")
-    if token_company != company_id:
-        await websocket.close(code=4003, reason="Forbidden")
-        return
-
-    await websocket.accept()
-    logger.info(f"Agent test call started for company: {company_id}")
-
-    from app.features.voice_agent.repository import get_settings as get_va_settings
+    company_id = user_info.get("company_id")
     va_settings = get_va_settings(company_id) or {}
 
-    try:
-        await handle_agent_ws(websocket, company_id, va_settings)
-    except WebSocketDisconnect:
-        logger.info(f"Agent test call ended for company: {company_id}")
-    except Exception as e:
-        logger.error(f"Agent test call error: {e}", exc_info=True)
+    # Pipecat's SmallWebRTC client sends `sdp`, `type`, optional `pc_id` and
+    # `restart_pc`. Wrap whatever shape the client sent into the request DTO.
+    request = SmallWebRTCRequest(
+        sdp=payload["sdp"],
+        type=payload["type"],
+        pc_id=payload.get("pc_id"),
+        restart_pc=payload.get("restart_pc"),
+    )
+
+    answer = await handle_browser_offer(request, company_id, va_settings)
+    if answer is None:
+        raise HTTPException(status_code=500, detail="Failed to negotiate WebRTC connection")
+    return answer
 
 
 # ---------------------------------------------------------------------------
-# Twilio incoming call webhook (public — called by Twilio)
+# Twilio incoming call (public)
 # ---------------------------------------------------------------------------
 
 @router.post("/twilio/incoming")
 async def twilio_incoming_call(request: Request):
-    """
-    Twilio hits this URL when a call comes in.
-    Returns TwiML that connects the call to our WebSocket media stream.
-    """
+    """Twilio hits this URL on incoming calls; we return TwiML that points
+    Twilio's <Stream> at our WebSocket media endpoint."""
     form = await request.form()
     called_number = form.get("Called", "")
     call_sid = form.get("CallSid", "")
-
     logger.info(f"Incoming call to {called_number}, CallSid: {call_sid}")
 
-    # Look up which company owns this phone number
     settings = service.get_settings_for_call(called_number)
     if not settings:
-        twiml = """<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-    <Say>Sorry, this number is not configured for automated scheduling. Goodbye.</Say>
-    <Hangup/>
-</Response>"""
+        twiml = (
+            "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+            "<Response>\n"
+            "    <Say>Sorry, this number is not configured for automated scheduling. Goodbye.</Say>\n"
+            "    <Hangup/>\n"
+            "</Response>"
+        )
         return Response(content=twiml, media_type="application/xml")
 
-    # Build WebSocket URL for media stream
     base_url = str(request.base_url).rstrip("/")
     ws_url = base_url.replace("https://", "wss://").replace("http://", "ws://")
     ws_url = f"{ws_url}/voice-agent/media-stream/{settings['company_id']}"
 
-    twiml = f"""<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-    <Connect>
-        <Stream url="{ws_url}">
-            <Parameter name="company_id" value="{settings['company_id']}" />
-        </Stream>
-    </Connect>
-</Response>"""
-
+    twiml = (
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+        "<Response>\n"
+        "    <Connect>\n"
+        f"        <Stream url=\"{ws_url}\">\n"
+        f"            <Parameter name=\"company_id\" value=\"{settings['company_id']}\" />\n"
+        "        </Stream>\n"
+        "    </Connect>\n"
+        "</Response>"
+    )
     return Response(content=twiml, media_type="application/xml")
 
 
-# ---------------------------------------------------------------------------
-# WebSocket media stream (called by Twilio <Stream>)
-# ---------------------------------------------------------------------------
-
 @router.websocket("/media-stream/{company_id}")
 async def media_stream(websocket: WebSocket, company_id: str):
-    """
-    Twilio connects here to stream call audio.
-    We run the full STT → LLM → TTS pipeline in real time.
-    """
+    """Twilio connects here to stream call audio."""
     await websocket.accept()
     logger.info(f"Media stream connected for company: {company_id}")
 
-    # Load voice agent settings
-    from app.features.voice_agent.repository import get_settings as get_va_settings
     va_settings = get_va_settings(company_id)
-
     if not va_settings or not va_settings.get("is_enabled"):
         logger.warning(f"Voice agent not enabled for company: {company_id}")
         await websocket.close()
         return
 
-    system_prompt = service.build_system_prompt(va_settings)
-
-    async def get_slots(cid: str, date_str: str):
-        return get_available_slots_for_date(cid, date_str, va_settings.get("appointment_duration_min", 30))
-
-    async def book_appt(cid: str, action: dict):
-        from datetime import datetime, timedelta
-        start = datetime.strptime(action["start_time"], "%H:%M")
-        duration = va_settings.get("appointment_duration_min", 30)
-        end = start + timedelta(minutes=duration)
-
-        appt_data = {
-            "caller_name": action.get("caller_name"),
-            "caller_phone": action.get("caller_phone"),
-            "scheduled_date": action["scheduled_date"],
-            "start_time": action["start_time"],
-            "end_time": end.strftime("%H:%M"),
-            "duration_min": duration,
-            "service_type": action.get("service_type"),
-            "source": "voice_agent",
-        }
-        return create_appointment(cid, appt_data)
-
-    handler = VoiceStreamHandler(
-        company_id=company_id,
-        system_prompt=system_prompt,
-        greeting_message=va_settings.get("greeting_message", "Hello! How can I help you today?"),
-        voice_model=va_settings.get("voice_model", "aura-asteria-en"),
-        language=va_settings.get("language", "en"),
-        available_slots_fn=get_slots,
-        book_appointment_fn=book_appt,
-    )
-
     try:
-        await handler.handle_twilio_ws(websocket)
+        await run_twilio_call(websocket, company_id, va_settings)
     except WebSocketDisconnect:
         logger.info(f"Media stream disconnected for company: {company_id}")
-    except Exception as e:
-        logger.error(f"Media stream error: {e}", exc_info=True)
+    except Exception:
+        logger.exception("Media stream error")
