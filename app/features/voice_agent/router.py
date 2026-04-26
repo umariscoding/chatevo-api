@@ -71,14 +71,9 @@ async def get_call_logs(
 # Browser test call — Pipecat SmallWebRTC SDP offer/answer
 # ---------------------------------------------------------------------------
 
-@router.api_route("/offer", methods=["POST", "PATCH"])
+@router.post("/offer")
 async def voice_agent_offer(payload: Dict[str, Any], token: str = ""):
     """Browser POSTs an SDP offer here; we return an SDP answer.
-
-    Pipecat's SmallWebRTC client uses POST for the initial offer and PATCH
-    for renegotiation / ICE restarts (e.g. when crossing NATs). Both go
-    through the same handler — the `pc_id` in the payload tells the
-    request handler whether it's a new session or an update.
 
     Auth: JWT in `?token=...` query param (the Pipecat client SDK can attach
     arbitrary query params to its connection URL).
@@ -93,8 +88,6 @@ async def voice_agent_offer(payload: Dict[str, Any], token: str = ""):
     from pipecat.transports.smallwebrtc.request_handler import SmallWebRTCRequest
     from app.features.voice_agent.pipeline import handle_browser_offer
 
-    # Pipecat's SmallWebRTC client sends `sdp`, `type`, optional `pc_id` and
-    # `restart_pc`. Wrap whatever shape the client sent into the request DTO.
     request = SmallWebRTCRequest(
         sdp=payload["sdp"],
         type=payload["type"],
@@ -106,6 +99,37 @@ async def voice_agent_offer(payload: Dict[str, Any], token: str = ""):
     if answer is None:
         raise HTTPException(status_code=500, detail="Failed to negotiate WebRTC connection")
     return answer
+
+
+@router.patch("/offer")
+async def voice_agent_offer_patch(payload: Dict[str, Any], token: str = ""):
+    """Browser PATCHes ICE candidates for an in-flight peer connection.
+
+    Pipecat's PATCH payload is `{pc_id, candidates: [{candidate, sdp_mid,
+    sdp_mline_index}]}` — different shape than POST (no `sdp`/`type`).
+    """
+    user_info = get_current_user_info(token) if token else None
+    if not user_info or user_info.get("user_type") != "company":
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    from pipecat.transports.smallwebrtc.request_handler import (
+        IceCandidate,
+        SmallWebRTCPatchRequest,
+    )
+    from app.features.voice_agent.pipeline import handle_browser_patch
+
+    candidates = [
+        IceCandidate(
+            candidate=c.get("candidate", ""),
+            sdp_mid=c.get("sdp_mid") or c.get("sdpMid") or "",
+            sdp_mline_index=c.get("sdp_mline_index") if c.get("sdp_mline_index") is not None else c.get("sdpMLineIndex", 0),
+        )
+        for c in payload.get("candidates", [])
+    ]
+    patch = SmallWebRTCPatchRequest(pc_id=payload["pc_id"], candidates=candidates)
+
+    await handle_browser_patch(patch)
+    return {"ok": True}
 
 
 # ---------------------------------------------------------------------------

@@ -400,3 +400,8 @@ async def handle_browser_offer(
         )
 
     return await _webrtc_handler.handle_web_request(request, _on_connection)
+
+
+async def handle_browser_patch(patch_request) -> None:
+    """Apply trickled ICE candidates to an in-flight peer connection."""
+    await _webrtc_handler.handle_patch_request(patch_request)
