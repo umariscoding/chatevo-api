@@ -18,31 +18,39 @@ FIELD_DEFS: Dict[str, Dict[str, str]] = {
 
 
 def _availability_text(company_id: str, duration_min: int) -> str:
-    """Summarize the next 7 days of availability for the system prompt."""
-    from app.features.availability.service import get_available_slots_for_date
+    """Summarize the next 7 days of availability for the system prompt.
+
+    Uses one batched fetch (3 queries total) instead of 7×3 sequential queries.
+    """
+    from app.features.availability.service import get_available_slots_for_range
 
     today = datetime.now(timezone.utc)
+    from_date = today.strftime("%Y-%m-%d")
+    to_date = (today + timedelta(days=6)).strftime("%Y-%m-%d")
+
+    try:
+        slots_by_date = get_available_slots_for_range(company_id, from_date, to_date, duration_min)
+    except Exception:
+        slots_by_date = {}
+
     lines: List[str] = []
     for i in range(7):
         d = today + timedelta(days=i)
         date_str = d.strftime("%Y-%m-%d")
         day_name = d.strftime("%A")
-        try:
-            slots = get_available_slots_for_date(company_id, date_str, duration_min)
-            if not slots:
-                lines.append(f"  {day_name} {date_str}: Closed")
-                continue
-            ranges, rs, re_ = [], slots[0]["start_time"], slots[0]["end_time"]
-            for s in slots[1:]:
-                if s["start_time"] == re_:
-                    re_ = s["end_time"]
-                else:
-                    ranges.append(f"{rs}-{re_}")
-                    rs, re_ = s["start_time"], s["end_time"]
-            ranges.append(f"{rs}-{re_}")
-            lines.append(f"  {day_name} {date_str}: {', '.join(ranges)}")
-        except Exception:
+        slots = slots_by_date.get(date_str, [])
+        if not slots:
             lines.append(f"  {day_name} {date_str}: Closed")
+            continue
+        ranges, rs, re_ = [], slots[0]["start_time"], slots[0]["end_time"]
+        for s in slots[1:]:
+            if s["start_time"] == re_:
+                re_ = s["end_time"]
+            else:
+                ranges.append(f"{rs}-{re_}")
+                rs, re_ = s["start_time"], s["end_time"]
+        ranges.append(f"{rs}-{re_}")
+        lines.append(f"  {day_name} {date_str}: {', '.join(ranges)}")
     return "Schedule (next 7 days):\n" + "\n".join(lines)
 
 

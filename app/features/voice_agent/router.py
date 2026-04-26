@@ -16,10 +16,13 @@ from app.core.security import get_current_user_info
 from app.features.auth.dependencies import get_current_company, UserContext
 from app.features.voice_agent import service
 from app.features.voice_agent.call_log_repository import list_call_logs
-from app.features.voice_agent.pipeline import handle_browser_offer, run_twilio_call
 from app.features.voice_agent.repository import get_settings as get_va_settings
 from app.features.voice_agent.schemas import VoiceAgentSettingsRequest
-from pipecat.transports.smallwebrtc.request_handler import SmallWebRTCRequest
+
+# Pipecat imports (aiortc, opencv, silero/torch) are deferred to call-handler
+# bodies so they don't run on app startup. Loading them eagerly at module
+# import slows boot by 20–30s on Railway and bloats memory for every tenant
+# regardless of whether they ever touch voice.
 
 logger = logging.getLogger("wispoke.voice")
 
@@ -81,6 +84,9 @@ async def voice_agent_offer(payload: Dict[str, Any], token: str = ""):
 
     company_id = user_info.get("company_id")
     va_settings = get_va_settings(company_id) or {}
+
+    from pipecat.transports.smallwebrtc.request_handler import SmallWebRTCRequest
+    from app.features.voice_agent.pipeline import handle_browser_offer
 
     # Pipecat's SmallWebRTC client sends `sdp`, `type`, optional `pc_id` and
     # `restart_pc`. Wrap whatever shape the client sent into the request DTO.
@@ -149,6 +155,8 @@ async def media_stream(websocket: WebSocket, company_id: str):
         logger.warning(f"Voice agent not enabled for company: {company_id}")
         await websocket.close()
         return
+
+    from app.features.voice_agent.pipeline import run_twilio_call
 
     try:
         await run_twilio_call(websocket, company_id, va_settings)

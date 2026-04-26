@@ -57,41 +57,35 @@ def delete_exception(company_id: str, exception_id: str) -> None:
         raise NotFoundError("Exception not found")
 
 
-def get_available_slots_for_date(company_id: str, date_str: str, duration_min: int = 30) -> List[Dict[str, str]]:
-    """Get available time slots for a specific date, considering schedule + exceptions."""
+def _compute_slots(
+    date_str: str,
+    duration_min: int,
+    schedules: List[Dict[str, Any]],
+    day_exceptions: List[Dict[str, Any]],
+    day_appointments: List[Dict[str, Any]],
+) -> List[Dict[str, str]]:
+    """Pure function: compute available slots from pre-fetched data."""
     from datetime import datetime, timedelta
 
     target = datetime.strptime(date_str, "%Y-%m-%d")
     day_of_week = (target.weekday() + 1) % 7  # Python: 0=Monday -> our 0=Sunday
 
-    # Check exceptions first
-    exceptions = repo.get_exceptions(company_id, date_str, date_str)
-    blocked_entirely = any(not ex["is_available"] and ex.get("start_time") is None for ex in exceptions)
-    if blocked_entirely:
+    if any(not ex["is_available"] and ex.get("start_time") is None for ex in day_exceptions):
         return []
 
-    # Get regular schedule for this day
-    schedules = repo.get_schedules(company_id)
     day_slots = [s for s in schedules if s["day_of_week"] == day_of_week and s["is_active"]]
 
-    # Add extra availability from exceptions
-    for ex in exceptions:
+    for ex in day_exceptions:
         if ex["is_available"] and ex.get("start_time") and ex.get("end_time"):
             day_slots.append({"start_time": ex["start_time"], "end_time": ex["end_time"]})
 
-    # Remove blocked time ranges from exceptions
     blocked_ranges = [
         (ex["start_time"], ex["end_time"])
-        for ex in exceptions
+        for ex in day_exceptions
         if not ex["is_available"] and ex.get("start_time") and ex.get("end_time")
     ]
+    booked_ranges = [(a["start_time"], a["end_time"]) for a in day_appointments if a["status"] != "cancelled"]
 
-    # Get existing appointments for this date
-    from app.features.appointments.repository import get_appointments_for_date
-    existing_appts = get_appointments_for_date(company_id, date_str)
-    booked_ranges = [(a["start_time"], a["end_time"]) for a in existing_appts if a["status"] != "cancelled"]
-
-    # Generate available slots
     available = []
     for slot in day_slots:
         start = datetime.strptime(slot["start_time"][:5], "%H:%M")
@@ -102,12 +96,9 @@ def get_available_slots_for_date(company_id: str, date_str: str, duration_min: i
             slot_start = current.strftime("%H:%M")
             slot_end = (current + timedelta(minutes=duration_min)).strftime("%H:%M")
 
-            # Check if slot overlaps with blocked ranges or booked appointments
             is_blocked = False
             for br_start, br_end in blocked_ranges + booked_ranges:
-                br_s = br_start[:5]
-                br_e = br_end[:5]
-                if slot_start < br_e and slot_end > br_s:
+                if slot_start < br_end[:5] and slot_end > br_start[:5]:
                     is_blocked = True
                     break
 
@@ -117,3 +108,47 @@ def get_available_slots_for_date(company_id: str, date_str: str, duration_min: i
             current += timedelta(minutes=duration_min)
 
     return available
+
+
+def get_available_slots_for_date(company_id: str, date_str: str, duration_min: int = 30) -> List[Dict[str, str]]:
+    """Get available time slots for a specific date, considering schedule + exceptions."""
+    from app.features.appointments.repository import get_appointments_for_date
+
+    schedules = repo.get_schedules(company_id)
+    day_exceptions = repo.get_exceptions(company_id, date_str, date_str)
+    day_appointments = get_appointments_for_date(company_id, date_str)
+    return _compute_slots(date_str, duration_min, schedules, day_exceptions, day_appointments)
+
+
+def get_available_slots_for_range(
+    company_id: str, from_date: str, to_date: str, duration_min: int = 30
+) -> Dict[str, List[Dict[str, str]]]:
+    """Batch version: fetch schedule + exceptions + appointments once, compute slots per day.
+
+    Replaces N×3 sequential queries with 3 total. Used by the voice agent prompt builder.
+    """
+    from datetime import datetime, timedelta
+    from app.features.appointments.repository import get_appointments
+
+    schedules = repo.get_schedules(company_id)
+    exceptions = repo.get_exceptions(company_id, from_date, to_date)
+    appointments = get_appointments(company_id, from_date, to_date)
+
+    by_date_exc: Dict[str, List[Dict[str, Any]]] = {}
+    for ex in exceptions:
+        by_date_exc.setdefault(ex["exception_date"], []).append(ex)
+
+    by_date_appt: Dict[str, List[Dict[str, Any]]] = {}
+    for a in appointments:
+        by_date_appt.setdefault(a["scheduled_date"], []).append(a)
+
+    out: Dict[str, List[Dict[str, str]]] = {}
+    cur = datetime.strptime(from_date, "%Y-%m-%d")
+    end = datetime.strptime(to_date, "%Y-%m-%d")
+    while cur <= end:
+        d = cur.strftime("%Y-%m-%d")
+        out[d] = _compute_slots(
+            d, duration_min, schedules, by_date_exc.get(d, []), by_date_appt.get(d, [])
+        )
+        cur += timedelta(days=1)
+    return out
