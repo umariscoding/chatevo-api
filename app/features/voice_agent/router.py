@@ -14,6 +14,8 @@ from fastapi.responses import Response
 
 from app.core.security import get_current_user_info
 from app.features.auth.dependencies import get_current_company, UserContext
+from app.features.auth.repository import get_company_by_id
+from app.features.billing.service import is_plan_active
 from app.features.voice_agent import service
 from app.features.voice_agent.call_log_repository import list_call_logs
 from app.features.voice_agent.repository import get_settings as get_va_settings
@@ -83,6 +85,10 @@ async def voice_agent_offer(payload: Dict[str, Any], token: str = ""):
         raise HTTPException(status_code=401, detail="Unauthorized")
 
     company_id = user_info.get("company_id")
+    company = get_company_by_id(company_id)
+    if not company or not is_plan_active(company):
+        raise HTTPException(status_code=403, detail="Voice agent requires a Pro plan.")
+
     va_settings = get_va_settings(company_id) or {}
 
     from pipecat.transports.smallwebrtc.request_handler import SmallWebRTCRequest
@@ -111,6 +117,10 @@ async def voice_agent_offer_patch(payload: Dict[str, Any], token: str = ""):
     user_info = get_current_user_info(token) if token else None
     if not user_info or user_info.get("user_type") != "company":
         raise HTTPException(status_code=401, detail="Unauthorized")
+
+    company = get_company_by_id(user_info.get("company_id"))
+    if not company or not is_plan_active(company):
+        raise HTTPException(status_code=403, detail="Voice agent requires a Pro plan.")
 
     from pipecat.transports.smallwebrtc.request_handler import (
         IceCandidate,
@@ -156,6 +166,18 @@ async def twilio_incoming_call(request: Request):
         )
         return Response(content=twiml, media_type="application/xml")
 
+    company = get_company_by_id(settings["company_id"])
+    if not company or not is_plan_active(company):
+        logger.warning("Twilio call rejected — no active Pro plan for company %s", settings["company_id"])
+        twiml = (
+            "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+            "<Response>\n"
+            "    <Say>This number's subscription is not active. Goodbye.</Say>\n"
+            "    <Hangup/>\n"
+            "</Response>"
+        )
+        return Response(content=twiml, media_type="application/xml")
+
     base_url = str(request.base_url).rstrip("/")
     ws_url = base_url.replace("https://", "wss://").replace("http://", "ws://")
     ws_url = f"{ws_url}/voice-agent/media-stream/{settings['company_id']}"
@@ -182,6 +204,12 @@ async def media_stream(websocket: WebSocket, company_id: str):
     va_settings = get_va_settings(company_id)
     if not va_settings or not va_settings.get("is_enabled"):
         logger.warning(f"Voice agent not enabled for company: {company_id}")
+        await websocket.close()
+        return
+
+    company = get_company_by_id(company_id)
+    if not company or not is_plan_active(company):
+        logger.warning(f"Voice agent denied — no active Pro plan for company: {company_id}")
         await websocket.close()
         return
 
