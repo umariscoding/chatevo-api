@@ -29,6 +29,11 @@ class Settings(BaseSettings):
     # --- Voice Agent (Deepgram STT/TTS) ---
     deepgram_api_key: Optional[str] = None
 
+    # --- Email (Resend) ---
+    # When unset, send_email is a no-op so the app still runs in dev.
+    resend_api_key: Optional[str] = None
+    email_from: str = "onboarding@resend.dev"
+
     # --- JWT ---
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 30

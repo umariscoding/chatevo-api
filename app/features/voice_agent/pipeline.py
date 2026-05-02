@@ -15,6 +15,7 @@ from typing import Any, Awaitable, Callable, Dict, List, Optional, Tuple
 from fastapi import WebSocket
 from pipecat.adapters.schemas.function_schema import FunctionSchema
 from pipecat.adapters.schemas.tools_schema import ToolsSchema
+from pipecat.audio.turn.smart_turn.local_smart_turn_v3 import LocalSmartTurnAnalyzerV3
 from pipecat.audio.vad.silero import SileroVADAnalyzer
 from pipecat.frames.frames import TTSSpeakFrame
 from pipecat.pipeline.pipeline import Pipeline
@@ -27,7 +28,7 @@ from pipecat.processors.aggregators.llm_response_universal import (
 )
 from pipecat.runner.utils import parse_telephony_websocket
 from pipecat.serializers.twilio import TwilioFrameSerializer
-from pipecat.services.deepgram.stt import DeepgramSTTService
+from pipecat.services.deepgram.stt import DeepgramSTTService, LiveOptions
 from pipecat.services.deepgram.tts import DeepgramTTSService
 from pipecat.services.groq.llm import GroqLLMService
 from pipecat.services.llm_service import FunctionCallParams
@@ -41,6 +42,11 @@ from pipecat.transports.smallwebrtc.transport import SmallWebRTCTransport
 from pipecat.transports.websocket.fastapi import (
     FastAPIWebsocketParams,
     FastAPIWebsocketTransport,
+)
+from pipecat.turns.user_stop import TurnAnalyzerUserTurnStopStrategy
+from pipecat.turns.user_turn_strategies import (
+    UserTurnStrategies,
+    default_user_turn_start_strategies,
 )
 
 from app.core.config import settings as app_settings
@@ -131,6 +137,13 @@ def _make_book_handler(
             )
             return
 
+        # Best-effort booking notifications. Failures are logged but don't
+        # affect the call — the LLM still hears "success".
+        try:
+            _send_booking_emails(company_id, va_settings, args, result)
+        except Exception:
+            logger.exception("booking email dispatch failed")
+
         if on_booked:
             try:
                 await on_booked(result)
@@ -150,6 +163,63 @@ def _make_book_handler(
     return handler
 
 
+def _send_booking_emails(
+    company_id: str,
+    va_settings: Dict[str, Any],
+    args: Dict[str, Any],
+    result: Dict[str, Any],
+) -> None:
+    """Send confirmation to caller + notification to business owner."""
+    from app.core.email import send_email
+    from app.core.email_templates import (
+        render_caller_confirmation,
+        render_owner_notification,
+    )
+    from app.features.auth.repository import get_company_by_id
+
+    biz_name = va_settings.get("business_name") or "us"
+    biz_phone = va_settings.get("twilio_phone_number")
+    caller_name = args.get("caller_name") or "there"
+    caller_email = args.get("caller_email")
+    caller_phone = args.get("caller_phone")
+    service = args.get("service_type")
+    notes = args.get("notes") or args.get("caller_address")
+
+    # 1. Caller confirmation
+    if caller_email:
+        subject, html, text = render_caller_confirmation(
+            business_name=biz_name,
+            caller_name=caller_name,
+            scheduled_date=args["scheduled_date"],
+            start_time=args["start_time"],
+            service_type=service,
+            business_phone=biz_phone,
+        )
+        send_email(to=caller_email, subject=subject, html=html, text=text)
+
+    # 2. Business owner notification
+    company = get_company_by_id(company_id)
+    owner_email = (company or {}).get("email")
+    if owner_email:
+        subject, html, text = render_owner_notification(
+            business_name=biz_name,
+            caller_name=caller_name,
+            caller_phone=caller_phone,
+            caller_email=caller_email,
+            scheduled_date=args["scheduled_date"],
+            start_time=args["start_time"],
+            service_type=service,
+            notes=notes,
+        )
+        send_email(
+            to=owner_email,
+            subject=subject,
+            html=html,
+            text=text,
+            reply_to=caller_email or None,
+        )
+
+
 # ---------------------------------------------------------------------------
 # Pipeline factory (transport-agnostic)
 # ---------------------------------------------------------------------------
@@ -160,6 +230,32 @@ _VOICE_REMAP = {
     "aura-orion-en": "aura-2-odysseus-en",
     "aura-helios-en": "aura-2-atlas-en",
 }
+
+
+def _keyterms_for(va_settings: Dict[str, Any]) -> List[str]:
+    """Words to boost in Deepgram Nova-3. Domain vocab dominates STT errors —
+    business names, service types, and field labels are the highest-leverage
+    boosts."""
+    terms: List[str] = []
+    for key in ("business_name", "business_type"):
+        v = (va_settings.get(key) or "").strip()
+        if v:
+            terms.append(v)
+    for f in va_settings.get("appointment_fields") or []:
+        fd = FIELD_DEFS.get(f)
+        if fd:
+            terms.append(fd["label"])
+    # Common booking words callers say — boosts wake the model up to expect them.
+    terms.extend(["appointment", "booking", "schedule", "reschedule", "cancel"])
+    # Dedupe while preserving order.
+    seen: set = set()
+    out: List[str] = []
+    for t in terms:
+        k = t.lower()
+        if k and k not in seen:
+            seen.add(k)
+            out.append(t)
+    return out
 
 
 def _build_task(
@@ -179,7 +275,10 @@ def _build_task(
     if not groq_key:
         raise RuntimeError("GROQ_API_KEY is required")
 
-    stt = DeepgramSTTService(api_key=deepgram_key)
+    stt = DeepgramSTTService(
+        api_key=deepgram_key,
+        live_options=LiveOptions(keyterm=_keyterms_for(va_settings)),
+    )
     llm = GroqLLMService(
         api_key=groq_key,
         model=va_settings.get("llm_model") or "llama-3.3-70b-versatile",
@@ -195,9 +294,19 @@ def _build_task(
     system_prompt = build_system_prompt(company_id, va_settings)
     context = LLMContext(messages=[{"role": "system", "content": system_prompt}], tools=tools)
 
+    # Smart Turn v3 is a small ONNX model that detects *semantic* end-of-turn,
+    # not just silence — stops the agent from interrupting "uhh... let me think".
+    # Silero VAD still runs for start-of-turn detection.
+    turn_strategies = UserTurnStrategies(
+        start=default_user_turn_start_strategies(),
+        stop=[TurnAnalyzerUserTurnStopStrategy(turn_analyzer=LocalSmartTurnAnalyzerV3())],
+    )
     user_aggregator, assistant_aggregator = LLMContextAggregatorPair(
         context,
-        user_params=LLMUserAggregatorParams(vad_analyzer=SileroVADAnalyzer()),
+        user_params=LLMUserAggregatorParams(
+            vad_analyzer=SileroVADAnalyzer(),
+            user_turn_strategies=turn_strategies,
+        ),
     )
 
     pipeline = Pipeline(
