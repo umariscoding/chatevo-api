@@ -66,3 +66,37 @@ class AnalyticsDashboard(BaseModel):
     overview: OverviewStats
     timeSeries: TimeSeries
     metadata: AnalyticsMetadata
+
+
+class ConversationListItem(BaseModel):
+    chat_id: str
+    session_id: Optional[str]
+    started_at: str
+    last_message_at: Optional[str]
+    message_count: int
+    preview: str
+    ip_address: Optional[str]
+
+
+class ConversationsListResponse(BaseModel):
+    conversations: List[ConversationListItem]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int
+
+
+class TranscriptMessage(BaseModel):
+    role: str
+    content: str
+    timestamp: int
+
+
+class ConversationDetail(BaseModel):
+    chat_id: str
+    session_id: Optional[str]
+    started_at: str
+    ip_address: Optional[str]
+    user_agent: Optional[str]
+    messages: List[TranscriptMessage]
+    message_count: int

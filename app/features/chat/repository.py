@@ -117,6 +117,32 @@ def fetch_all_chats_by_company(company_id: str) -> List[Dict[str, Any]]:
     return db.table("chats").select("*").eq("company_id", company_id).eq("is_deleted", False).execute().data or []
 
 
+def fetch_guest_chats_paginated(company_id: str, page: int = 1, page_size: int = 25) -> dict:
+    p = PaginationParams(page, page_size)
+    total = (
+        db.table("chats").select("chat_id", count="exact")
+        .eq("company_id", company_id).eq("is_deleted", False).eq("is_guest", True)
+        .execute().count or 0
+    )
+    data = (
+        db.table("chats").select("*")
+        .eq("company_id", company_id).eq("is_deleted", False).eq("is_guest", True)
+        .order("created_at", desc=True).range(p.range_start, p.range_end)
+        .execute().data or []
+    )
+    return make_paginated_result(data, total, page, page_size)
+
+
+def fetch_messages_for_chats(company_id: str, chat_ids: List[str]) -> List[Dict[str, Any]]:
+    if not chat_ids:
+        return []
+    return (
+        db.table("messages").select("*")
+        .eq("company_id", company_id).in_("chat_id", chat_ids)
+        .order("timestamp", desc=False).execute().data or []
+    )
+
+
 def load_session_history(company_id: str, chat_id: str) -> InMemoryChatMessageHistory:
     history = InMemoryChatMessageHistory()
     for msg in fetch_messages(company_id, chat_id):

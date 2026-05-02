@@ -108,3 +108,13 @@ def get_guest_session(session_id: str) -> Optional[Dict[str, Any]]:
 
 def fetch_all_guest_sessions_by_company(company_id: str) -> List[Dict[str, Any]]:
     return db.table("guest_sessions").select("*").eq("company_id", company_id).execute().data or []
+
+
+def fetch_guest_sessions_by_ids(company_id: str, session_ids: List[str]) -> List[Dict[str, Any]]:
+    if not session_ids:
+        return []
+    return (
+        db.table("guest_sessions").select("*")
+        .eq("company_id", company_id).in_("session_id", session_ids)
+        .execute().data or []
+    )

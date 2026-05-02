@@ -7,9 +7,22 @@ import time
 from datetime import datetime, timedelta, timezone
 from typing import Dict, Any, List, Optional
 
+from app.core.exceptions import NotFoundError
 from app.core.pagination import paginate
-from app.features.chat.repository import fetch_all_messages_by_company, fetch_all_chats_by_company
-from app.features.users.repository import fetch_all_users_by_company, fetch_all_guest_sessions_by_company
+from app.features.chat.repository import (
+    fetch_all_messages_by_company,
+    fetch_all_chats_by_company,
+    fetch_guest_chats_paginated,
+    fetch_messages_for_chats,
+    fetch_messages,
+    get_chat_by_id,
+)
+from app.features.users.repository import (
+    fetch_all_users_by_company,
+    fetch_all_guest_sessions_by_company,
+    fetch_guest_sessions_by_ids,
+    get_guest_session,
+)
 from app.features.documents.repository import fetch_all_knowledge_bases_by_company
 from app.features.analytics.schemas import (
     ChangeIndicator,
@@ -22,6 +35,10 @@ from app.features.analytics.schemas import (
     AnalyticsMetadata,
     AnalyticsDashboard,
     CompanyUsersResponse,
+    ConversationListItem,
+    ConversationsListResponse,
+    TranscriptMessage,
+    ConversationDetail,
 )
 
 
@@ -178,4 +195,88 @@ def get_company_users_with_stats(
         page=result["page"],
         page_size=result["page_size"],
         total_pages=result["total_pages"],
+    )
+
+
+_PREVIEW_CHARS = 120
+
+
+def _ms_to_iso(ms: Optional[int]) -> Optional[str]:
+    if ms is None:
+        return None
+    return datetime.fromtimestamp(ms / 1000, tz=timezone.utc).isoformat()
+
+
+def get_company_conversations(
+    company_id: str, page: int = 1, page_size: int = 25
+) -> ConversationsListResponse:
+    page_data = fetch_guest_chats_paginated(company_id, page=page, page_size=page_size)
+    chats: List[Dict[str, Any]] = page_data["items"]
+
+    chat_ids = [c["chat_id"] for c in chats]
+    session_ids = [c["session_id"] for c in chats if c.get("session_id")]
+
+    messages = fetch_messages_for_chats(company_id, chat_ids)
+    sessions = fetch_guest_sessions_by_ids(company_id, session_ids)
+    sessions_by_id = {s["session_id"]: s for s in sessions}
+
+    msgs_by_chat: Dict[str, List[Dict[str, Any]]] = {}
+    for m in messages:
+        msgs_by_chat.setdefault(m["chat_id"], []).append(m)
+
+    items: List[ConversationListItem] = []
+    for chat in chats:
+        chat_msgs = msgs_by_chat.get(chat["chat_id"], [])
+        first_user = next((m for m in chat_msgs if m.get("role") == "human"), None)
+        preview = (first_user or {}).get("content", "") or ""
+        if len(preview) > _PREVIEW_CHARS:
+            preview = preview[:_PREVIEW_CHARS].rstrip() + "…"
+
+        last_ts = max((m.get("timestamp") for m in chat_msgs if m.get("timestamp") is not None), default=None)
+        session = sessions_by_id.get(chat.get("session_id")) if chat.get("session_id") else None
+
+        items.append(ConversationListItem(
+            chat_id=chat["chat_id"],
+            session_id=chat.get("session_id"),
+            started_at=chat.get("created_at", ""),
+            last_message_at=_ms_to_iso(last_ts),
+            message_count=len(chat_msgs),
+            preview=preview,
+            ip_address=(session or {}).get("ip_address"),
+        ))
+
+    return ConversationsListResponse(
+        conversations=items,
+        total=page_data["total"],
+        page=page_data["page"],
+        page_size=page_data["page_size"],
+        total_pages=page_data["total_pages"],
+    )
+
+
+def get_conversation_detail(company_id: str, chat_id: str) -> ConversationDetail:
+    chat = get_chat_by_id(chat_id)
+    if not chat or chat.get("company_id") != company_id or not chat.get("is_guest"):
+        raise NotFoundError("Conversation not found")
+
+    raw_messages = fetch_messages(company_id, chat_id)
+    transcript = [
+        TranscriptMessage(
+            role=m.get("role", ""),
+            content=m.get("content", ""),
+            timestamp=m.get("timestamp") or 0,
+        )
+        for m in raw_messages
+    ]
+
+    session = get_guest_session(chat["session_id"]) if chat.get("session_id") else None
+
+    return ConversationDetail(
+        chat_id=chat_id,
+        session_id=chat.get("session_id"),
+        started_at=chat.get("created_at", ""),
+        ip_address=(session or {}).get("ip_address"),
+        user_agent=(session or {}).get("user_agent"),
+        messages=transcript,
+        message_count=len(transcript),
     )
