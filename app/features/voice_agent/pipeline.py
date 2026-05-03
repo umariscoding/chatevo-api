@@ -92,6 +92,41 @@ def _book_appointment_schema(va_settings: Dict[str, Any]) -> FunctionSchema:
     )
 
 
+_EMAIL_PHONETICS = {
+    " at ": "@",
+    " dot ": ".",
+    " underscore ": "_",
+    " dash ": "-",
+    " hyphen ": "-",
+    " zed ": "z",
+    " zee ": "z",
+}
+
+
+def _sanitize_email(raw: Optional[str]) -> Optional[str]:
+    """Clean up Deepgram artifacts in dictated emails.
+
+    Deepgram transcribes "umar at gmail dot com" verbatim instead of normalizing
+    to a real address. Also emits "zed"/"zee" for the letter Z. Apply the same
+    fixes a human would when typing what they heard."""
+    if not raw:
+        return raw
+    s = " " + raw.lower().strip() + " "
+    for k, v in _EMAIL_PHONETICS.items():
+        s = s.replace(k, v)
+    s = s.replace(" ", "").strip(".")
+    return s or None
+
+
+def _sanitize_phone(raw: Optional[str]) -> Optional[str]:
+    """Strip dictation noise from phone numbers — keep digits and a leading +."""
+    if not raw:
+        return raw
+    s = raw.replace("double ", "").replace("triple ", "")
+    keep = "".join(c for c in s if c.isdigit() or c == "+")
+    return keep or None
+
+
 def _make_book_handler(
     company_id: str,
     va_settings: Dict[str, Any],
@@ -99,6 +134,12 @@ def _make_book_handler(
 ):
     async def handler(params: FunctionCallParams) -> None:
         args = dict(params.arguments)
+
+        # Clean up STT artifacts before validation/persistence.
+        if "caller_email" in args:
+            args["caller_email"] = _sanitize_email(args.get("caller_email"))
+        if "caller_phone" in args:
+            args["caller_phone"] = _sanitize_phone(args.get("caller_phone"))
 
         if not args.get("scheduled_date") or not args.get("start_time") or not args.get("caller_name"):
             await params.result_callback(
@@ -131,9 +172,21 @@ def _make_book_handler(
         try:
             result = create_appointment(company_id, payload)
         except Exception as e:
-            logger.warning(f"book_appointment rejected for {company_id}: {e}")
+            # Surface the real reason to the LLM so it can give the caller
+            # honest feedback instead of inventing one ("slot isn't available"
+            # was being hallucinated when the actual failure was something
+            # else — date format, validation, etc).
+            reason = str(e) or "unknown error"
+            logger.warning(f"book_appointment rejected for {company_id}: {reason}")
             await params.result_callback(
-                {"success": False, "message": "Couldn't book that — try a different time."}
+                {
+                    "success": False,
+                    "reason": reason,
+                    "message": (
+                        f"Booking failed: {reason}. Tell the caller in one sentence "
+                        "what went wrong, then offer the next available slot."
+                    ),
+                }
             )
             return
 
@@ -150,12 +203,14 @@ def _make_book_handler(
             except Exception:
                 logger.exception("on_booked callback failed")
 
+        # Tell the LLM exactly what to say. The prompt's hard-rule #5 forces
+        # verbatim repetition so the caller always hears a clear confirmation.
         await params.result_callback(
             {
                 "success": True,
                 "message": (
-                    f"Booked {args.get('caller_name')} on {args['scheduled_date']} "
-                    f"at {args['start_time']}."
+                    f'Say exactly: "Booked — {args.get("caller_name")} on '
+                    f'{args["scheduled_date"]} at {args["start_time"]}. See you then!"'
                 ),
             }
         )
@@ -279,17 +334,16 @@ def _build_task(
         api_key=deepgram_key,
         live_options=LiveOptions(keyterm=_keyterms_for(va_settings)),
     )
-    # Hard cap completion length so the model can't role-play both sides of
-    # the conversation in one turn (gpt-oss observed doing this with no cap).
-    # `reasoning_effort=low` keeps gpt-oss responsive for voice — medium/high
-    # adds 1-2s of thinking time per turn.
+    # llama-3.3 is non-reasoning, predictable, and fast. gpt-oss models leaked
+    # their chain-of-thought into the spoken output ("we need placeholder until
+    # they give... too bad") even with reasoning_effort=low — wrong family for
+    # voice. Hard token cap keeps responses to a single turn.
     llm = GroqLLMService(
         api_key=groq_key,
-        model=va_settings.get("llm_model") or "openai/gpt-oss-120b",
+        model=va_settings.get("llm_model") or "llama-3.3-70b-versatile",
         params=GroqLLMService.InputParams(
             temperature=0.6,
             max_completion_tokens=150,
-            extra={"reasoning_effort": "low"},
         ),
     )
 
