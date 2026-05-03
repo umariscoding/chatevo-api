@@ -281,7 +281,7 @@ def _build_task(
     )
     llm = GroqLLMService(
         api_key=groq_key,
-        model=va_settings.get("llm_model") or "llama-3.3-70b-versatile",
+        model=va_settings.get("llm_model") or "openai/gpt-oss-120b",
     )
 
     voice = va_settings.get("voice_model") or "aura-2-andromeda-en"
